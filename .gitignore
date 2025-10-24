@@ -1,0 +1,20 @@
+# Scraper generated files (can be regenerated)
+data-scraped.js
+data-scraped.json
+
+# Backup files
+*.backup
+
+# Node modules (if ever added)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

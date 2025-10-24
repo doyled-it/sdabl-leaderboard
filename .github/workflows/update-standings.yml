@@ -1,0 +1,65 @@
+name: Update SDABL Standings
+
+on:
+  # Run every Thursday at midnight Pacific Time
+  # Midnight PST (UTC-8) = 8:00 AM UTC
+  # Midnight PDT (UTC-7) = 7:00 AM UTC
+  # Using 8:00 AM UTC to cover PST
+  schedule:
+    - cron: '0 8 * * 4'  # Every Thursday at 8:00 AM UTC (midnight PST)
+
+  # Allow manual trigger from GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  update-standings:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run scraper and update data
+        run: |
+          echo "Running SDABL standings scraper..."
+          node scraper.js
+
+          echo "Copying scraped data to data.js..."
+          cp data-scraped.js data.js
+
+          echo "Update complete!"
+
+      - name: Check for changes
+        id: git-check
+        run: |
+          git diff --exit-code data.js || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push changes
+        if: steps.git-check.outputs.changed == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data.js
+          git commit -m "Update standings - $(date +'%Y-%m-%d')"
+          git push
+
+      - name: No changes detected
+        if: steps.git-check.outputs.changed != 'true'
+        run: echo "No changes to standings data - skipping commit"
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scraped-data-${{ github.run_number }}
+          path: |
+            data-scraped.js
+            data-scraped.json
+          retention-days: 7
