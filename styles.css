@@ -216,9 +216,23 @@ body {
     transform: scale(1.02);
 }
 
-.standings-table tbody tr.top3 {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 165, 0, 0.1) 100%);
-    border-left: 4px solid #FFD700;
+.standings-table tbody tr.clinched {
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(46, 125, 50, 0.15) 100%);
+    border-left: 4px solid #4CAF50;
+}
+
+.clinched-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #4CAF50;
+    background: rgba(76, 175, 80, 0.2);
+    border: 1px solid #4CAF50;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .team-details {
@@ -366,9 +380,9 @@ body {
     font-size: 1.2rem;
 }
 
-.rank-cell.top3 {
-    color: #FFD700;
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+.rank-cell.clinched {
+    color: #4CAF50;
+    text-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
 }
 
 .team-name-cell {
@@ -377,8 +391,8 @@ body {
     min-width: 180px;
 }
 
-.team-name-cell.top3 {
-    color: #FFD700;
+.team-name-cell.clinched {
+    color: #4CAF50;
 }
 
 .stat-cell {

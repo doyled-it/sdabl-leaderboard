@@ -9,9 +9,44 @@ function getCurrentSeason() {
     return seasonsData.seasons[currentSeasonId];
 }
 
+function hasClinchedPlayoff(team, allTeams) {
+    const totalSeasonGames = 10;
+    const playoffSpots = 6;
+
+    // Calculate games remaining for this team
+    const teamGamesPlayed = team.wins + team.losses + team.ties;
+    const teamGamesRemaining = totalSeasonGames - teamGamesPlayed;
+
+    // Team's minimum possible wins (if they lose all remaining games)
+    const teamMinWins = team.wins;
+
+    // Find teams below playoff line
+    const teamsOutsidePlayoffs = allTeams.filter(t => t.rank > playoffSpots);
+
+    // Check if any team outside playoffs can catch this team
+    for (const outsideTeam of teamsOutsidePlayoffs) {
+        const outsideGamesPlayed = outsideTeam.wins + outsideTeam.losses + outsideTeam.ties;
+        const outsideGamesRemaining = totalSeasonGames - outsideGamesPlayed;
+
+        // Maximum possible wins for outside team (if they win all remaining games)
+        const outsideMaxWins = outsideTeam.wins + outsideGamesRemaining;
+
+        // If outside team can match or exceed this team's minimum wins, not clinched
+        if (outsideMaxWins >= teamMinWins) {
+            return false;
+        }
+    }
+
+    // If no team outside playoffs can catch this team, they've clinched
+    return true;
+}
+
 function createTeamRow(team, index) {
+    const teamsData = getCurrentTeamsData();
+    const hasClinched = hasClinchedPlayoff(team, teamsData);
+
     const row = document.createElement('tr');
-    row.className = team.rank <= 3 ? 'top3' : '';
+    row.className = hasClinched ? 'clinched' : '';
     row.style.animationDelay = `${index * 0.1}s`;
     row.dataset.teamName = team.name;
     row.addEventListener('click', () => toggleTeamDetails(team, row));
@@ -19,15 +54,16 @@ function createTeamRow(team, index) {
     const runDiffClass = team.runDiff > 0 ? 'positive' : team.runDiff < 0 ? 'negative' : '';
     const runDiffSymbol = team.runDiff > 0 ? '+' : '';
 
-    const teamsData = getCurrentTeamsData();
     const firstPlaceWinPct = teamsData[0].winPct;
     const totalGames = team.wins + team.losses + team.ties;
     const gamesBehind = team.rank === 1 ? '-' :
         ((firstPlaceWinPct - team.winPct) * totalGames / 2).toFixed(1);
 
+    const clinchedBadge = hasClinched ? ' <span class="clinched-badge">✓ CLINCHED</span>' : '';
+
     row.innerHTML = `
-        <td class="rank-cell ${team.rank <= 3 ? 'top3' : ''}">${team.rank}</td>
-        <td class="team-name-cell ${team.rank <= 3 ? 'top3' : ''}">${team.name}</td>
+        <td class="rank-cell ${hasClinched ? 'clinched' : ''}">${team.rank}</td>
+        <td class="team-name-cell ${hasClinched ? 'clinched' : ''}">${team.name}${clinchedBadge}</td>
         <td class="stat-cell">${team.wins}</td>
         <td class="stat-cell">${team.losses}</td>
         <td class="stat-cell">${team.ties}</td>
