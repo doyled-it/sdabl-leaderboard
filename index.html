@@ -19,6 +19,16 @@
             <button class="season-tab" data-season="spring2026">Spring 2026</button>
         </div>
 
+        <div class="season-progress-container" id="seasonProgressContainer">
+            <div class="progress-header">
+                <span class="progress-label" id="progressLabel">Season Progress</span>
+                <span class="progress-stats" id="progressStats">0 / 10 Games</span>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+        </div>
+
         <div class="standings-container">
             <table class="standings-table">
                 <thead>
@@ -42,74 +52,13 @@
 
         <div class="upcoming-games-container" id="upcomingGamesContainer">
             <h2 class="upcoming-title">📅 Upcoming Games</h2>
-            <div class="upcoming-games-grid" id="upcomingGamesGrid">
+            <div id="upcomingGamesGrid">
                 <!-- Populated by JavaScript -->
             </div>
         </div>
 
-        <div class="leaders-section">
-            <div class="leader-card">
-                <h3 class="leader-title">
-                    <span class="emoji">🏆</span>
-                    Undefeated Teams
-                </h3>
-                <ul class="leader-list">
-                    <li class="leader-item">
-                        <span><strong>Heroes</strong> (4-0)</span>
-                        <span class="positive">+42 run diff</span>
-                    </li>
-                    <li class="leader-item">
-                        <span><strong>Beavers</strong> (4-0)</span>
-                        <span class="positive">+16 run diff</span>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="leader-card">
-                <h3 class="leader-title">
-                    <span class="emoji">🔥</span>
-                    Offensive Leaders
-                </h3>
-                <ul class="leader-list">
-                    <li class="leader-item">
-                        <span><strong>Diamond Dogs</strong></span>
-                        <span>73 runs scored</span>
-                    </li>
-                    <li class="leader-item">
-                        <span><strong>Happy Sox</strong></span>
-                        <span>71 runs scored</span>
-                    </li>
-                    <li class="leader-item">
-                        <span><strong>Heroes</strong></span>
-                        <span>68 runs scored</span>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="leader-card">
-                <h3 class="leader-title">
-                    <span class="emoji">🛡️</span>
-                    Defensive Leaders
-                </h3>
-                <ul class="leader-list">
-                    <li class="leader-item">
-                        <span><strong>Beavers</strong></span>
-                        <span>22 runs allowed</span>
-                    </li>
-                    <li class="leader-item">
-                        <span><strong>Heroes</strong></span>
-                        <span>26 runs allowed</span>
-                    </li>
-                    <li class="leader-item">
-                        <span><strong>Lemon Grove Athletics</strong></span>
-                        <span>32 runs allowed</span>
-                    </li>
-                </ul>
-            </div>
-        </div>
-
-        <div class="update-info">
-            <p>✨ Current standings based on completed games ✨</p>
+        <div class="leaders-section" id="leadersSection">
+            <!-- Populated by JavaScript -->
         </div>
     </div>
 

@@ -98,15 +98,128 @@ function toggleTeamDetails(team, clickedRow) {
     }
 }
 
-function populateStandings() {
-    const tbody = document.getElementById('standingsBody');
-    const container = document.querySelector('.standings-container');
-
-    // Clear existing content
-    tbody.innerHTML = '';
-    expandedTeam = null;
-
+function updateSeasonProgress() {
     const season = getCurrentSeason();
+    const progressContainer = document.getElementById('seasonProgressContainer');
+
+    // Hide progress for upcoming seasons
+    if (season.status === 'upcoming' || season.teams.length === 0) {
+        progressContainer.style.display = 'none';
+        return;
+    }
+
+    progressContainer.style.display = 'block';
+
+    // Calculate games played (max games any team has played)
+    const maxGamesPlayed = Math.max(...season.teams.map(team =>
+        team.wins + team.losses + team.ties
+    ));
+
+    const totalSeasonGames = 10;
+    const progressPercentage = (maxGamesPlayed / totalSeasonGames) * 100;
+
+    // Update progress bar
+    const progressBar = document.getElementById('progressBar');
+    progressBar.style.width = `${Math.min(progressPercentage, 100)}%`;
+
+    // Update stats text
+    const progressStats = document.getElementById('progressStats');
+    progressStats.textContent = `${maxGamesPlayed} / ${totalSeasonGames} Games`;
+}
+
+function populateLeaders() {
+    const season = getCurrentSeason();
+    const leadersContainer = document.getElementById('leadersSection');
+
+    // Hide leaders for upcoming seasons
+    if (season.status === 'upcoming' || season.teams.length === 0) {
+        leadersContainer.style.display = 'none';
+        return;
+    }
+
+    leadersContainer.style.display = 'grid';
+
+    const teamsData = getCurrentTeamsData();
+
+    // Top Teams (by rank)
+    const topTeams = teamsData.slice(0, 3);
+
+    // Offensive Leaders (by runs scored)
+    const offensiveLeaders = [...teamsData]
+        .sort((a, b) => b.runsFor - a.runsFor)
+        .slice(0, 3);
+
+    // Defensive Leaders (by fewest runs allowed)
+    const defensiveLeaders = [...teamsData]
+        .sort((a, b) => a.runsAgainst - b.runsAgainst)
+        .slice(0, 3);
+
+    // Build HTML
+    const topTeamsHtml = topTeams.map(team => {
+        const record = `${team.wins}-${team.losses}${team.ties > 0 ? `-${team.ties}` : ''}`;
+        const runDiffClass = team.runDiff > 0 ? 'positive' : team.runDiff < 0 ? 'negative' : '';
+        const runDiffSymbol = team.runDiff > 0 ? '+' : '';
+        return `
+            <li class="leader-item">
+                <span><strong>${team.name}</strong> (${record})</span>
+                <span class="${runDiffClass}">${runDiffSymbol}${team.runDiff} run diff</span>
+            </li>
+        `;
+    }).join('');
+
+    const offensiveHtml = offensiveLeaders.map(team => `
+        <li class="leader-item">
+            <span><strong>${team.name}</strong></span>
+            <span>${team.runsFor} runs scored</span>
+        </li>
+    `).join('');
+
+    const defensiveHtml = defensiveLeaders.map(team => `
+        <li class="leader-item">
+            <span><strong>${team.name}</strong></span>
+            <span>${team.runsAgainst} runs allowed</span>
+        </li>
+    `).join('');
+
+    leadersContainer.innerHTML = `
+        <div class="leader-card">
+            <h3 class="leader-title">
+                <span class="emoji">🏆</span>
+                Top Teams
+            </h3>
+            <ul class="leader-list">
+                ${topTeamsHtml}
+            </ul>
+        </div>
+
+        <div class="leader-card">
+            <h3 class="leader-title">
+                <span class="emoji">🔥</span>
+                Offensive Leaders
+            </h3>
+            <ul class="leader-list">
+                ${offensiveHtml}
+            </ul>
+        </div>
+
+        <div class="leader-card">
+            <h3 class="leader-title">
+                <span class="emoji">🛡️</span>
+                Defensive Leaders
+            </h3>
+            <ul class="leader-list">
+                ${defensiveHtml}
+            </ul>
+        </div>
+    `;
+}
+
+function populateStandings() {
+    const container = document.querySelector('.standings-container');
+    const season = getCurrentSeason();
+
+    // Clear expanded team state
+    expandedTeam = null;
 
     // Check if season is upcoming (no teams yet)
     if (season.status === 'upcoming' || season.teams.length === 0) {
@@ -119,6 +232,10 @@ function populateStandings() {
         `;
         // Hide upcoming games for upcoming seasons
         hideUpcomingGames();
+        // Hide progress indicator
+        updateSeasonProgress();
+        // Hide leader cards
+        populateLeaders();
         return;
     }
 
@@ -145,15 +262,32 @@ function populateStandings() {
         `;
     }
 
+    // Clear and populate table body
+    const tbody = document.getElementById('standingsBody');
+    tbody.innerHTML = '';
+
     // Populate with teams
     const teamsData = getCurrentTeamsData();
-    const newTbody = document.getElementById('standingsBody');
     teamsData.forEach((team, index) => {
-        newTbody.appendChild(createTeamRow(team, index));
+        tbody.appendChild(createTeamRow(team, index));
+
+        // Add playoff cutoff line after 6th team
+        if (index === 5 && teamsData.length > 6) {
+            const cutoffRow = document.createElement('tr');
+            cutoffRow.className = 'playoff-cutoff';
+            cutoffRow.innerHTML = '<td colspan="10"><div class="playoff-line"><span class="playoff-label">Playoff Line</span></div></td>';
+            tbody.appendChild(cutoffRow);
+        }
     });
 
     // Populate upcoming games
     populateUpcomingGames();
+
+    // Update season progress
+    updateSeasonProgress();
+
+    // Populate leader cards
+    populateLeaders();
 }
 
 function populateUpcomingGames() {
@@ -169,9 +303,44 @@ function populateUpcomingGames() {
     container.style.display = 'block';
     grid.innerHTML = '';
 
+    // Group games by date
+    const gamesByDate = {};
     season.upcomingGames.forEach(game => {
-        const card = createUpcomingGameCard(game);
-        grid.appendChild(card);
+        const dateKey = `${game.day}, ${game.date}`;
+        if (!gamesByDate[dateKey]) {
+            gamesByDate[dateKey] = [];
+        }
+        gamesByDate[dateKey].push(game);
+    });
+
+    // Create date sections
+    Object.keys(gamesByDate).forEach(dateKey => {
+        const games = gamesByDate[dateKey];
+
+        // Create date header
+        const dateSection = document.createElement('div');
+        dateSection.className = 'upcoming-date-section';
+
+        const dateHeader = document.createElement('div');
+        dateHeader.className = 'upcoming-date-header';
+        dateHeader.innerHTML = `
+            <span class="date-icon">📅</span>
+            <span class="date-text">${dateKey}</span>
+            <span class="game-count">${games.length} game${games.length > 1 ? 's' : ''}</span>
+        `;
+        dateSection.appendChild(dateHeader);
+
+        // Create games grid for this date
+        const dateGamesGrid = document.createElement('div');
+        dateGamesGrid.className = 'upcoming-games-grid';
+
+        games.forEach(game => {
+            const card = createUpcomingGameCard(game);
+            dateGamesGrid.appendChild(card);
+        });
+
+        dateSection.appendChild(dateGamesGrid);
+        grid.appendChild(dateSection);
     });
 }
 
@@ -187,9 +356,9 @@ function createUpcomingGameCard(game) {
     card.className = 'upcoming-game-card';
 
     card.innerHTML = `
-        <div class="game-date-time">
-            <div class="game-date-display">${game.day}, ${game.date}</div>
-            <div class="game-time-display">${game.time}</div>
+        <div class="game-time-header">
+            <span class="time-icon">🕐</span>
+            <span class="game-time-display">${game.time}</span>
         </div>
         <div class="game-matchup-upcoming">
             <div class="game-team">
