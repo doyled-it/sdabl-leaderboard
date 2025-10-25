@@ -164,14 +164,38 @@ function calculatePlayoffProbability(team, allTeams) {
         remainingMatchups.forEach(matchup => {
             const { homeTeam, awayTeam } = matchup;
 
-            // Calculate win probability based on win percentages
-            // Home team gets slight boost
-            const homeWinPct = homeTeam.winPct || 0.500;
-            const awayWinPct = awayTeam.winPct || 0.500;
+            // Calculate win probability using Pythagorean expectation based on runs
+            // This accounts for offensive strength vs defensive weakness
 
-            // Pythagorean-style win probability with home field advantage
-            const homeStrength = Math.pow(homeWinPct, 1.5) * 1.05; // 5% home boost
-            const awayStrength = Math.pow(awayWinPct, 1.5);
+            // Get runs for/against from original team data
+            const homeRF = homeTeam.runsFor || 1;
+            const homeRA = homeTeam.runsAgainst || 1;
+            const awayRF = awayTeam.runsFor || 1;
+            const awayRA = awayTeam.runsAgainst || 1;
+
+            // Pythagorean win% formula for baseball (exponent ~1.83)
+            // Expected Win% = (Runs Scored)^1.83 / ((Runs Scored)^1.83 + (Runs Allowed)^1.83)
+            const exponent = 1.83;
+            const homePythWinPct = Math.pow(homeRF, exponent) / (Math.pow(homeRF, exponent) + Math.pow(homeRA, exponent));
+            const awayPythWinPct = Math.pow(awayRF, exponent) / (Math.pow(awayRF, exponent) + Math.pow(awayRA, exponent));
+
+            // Blend actual win% with Pythagorean win% (70% Pyth, 30% actual)
+            // This accounts for both run differential AND actual results (luck, clutch, etc.)
+            const homeExpWinPct = (homePythWinPct * 0.7) + (homeTeam.winPct * 0.3);
+            const awayExpWinPct = (awayPythWinPct * 0.7) + (awayTeam.winPct * 0.3);
+
+            // Matchup-specific prediction: home offense vs away defense, away offense vs home defense
+            // Home team's scoring ability vs away team's runs allowed
+            const homeOffenseVsAwayDefense = homeRF / awayRA;
+            // Away team's scoring ability vs home team's runs allowed
+            const awayOffenseVsHomeDefense = awayRF / homeRA;
+
+            // Combined strength considering both overall ability and matchup
+            // Home gets 5% boost for home field advantage
+            const homeStrength = (homeExpWinPct * 0.6 + homeOffenseVsAwayDefense * 0.4) * 1.05;
+            const awayStrength = (awayExpWinPct * 0.6 + awayOffenseVsHomeDefense * 0.4);
+
+            // Calculate win probability
             const homeWinProb = homeStrength / (homeStrength + awayStrength);
 
             const rand = Math.random();
