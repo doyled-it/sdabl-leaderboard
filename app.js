@@ -10,7 +10,8 @@ function getCurrentSeason() {
 }
 
 function hasClinchedPlayoff(team, allTeams) {
-    const totalSeasonGames = 10;
+    const season = getCurrentSeason();
+    const totalSeasonGames = season.regularSeasonGames || 10;
     const playoffSpots = 6;
 
     // Calculate games remaining for this team
@@ -151,7 +152,7 @@ function updateSeasonProgress() {
         team.wins + team.losses + team.ties
     ));
 
-    const totalSeasonGames = 10;
+    const totalSeasonGames = season.regularSeasonGames || 10;
     const progressPercentage = (maxGamesPlayed / totalSeasonGames) * 100;
 
     // Update progress bar

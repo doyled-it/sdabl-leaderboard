@@ -11,6 +11,7 @@ const seasonsData = {
             division: '25A',
             divisionId: '1061524',
             status: 'active',
+            regularSeasonGames: 10,
             teams: [
                 {
                     rank: 1, name: "Heroes", wins: 7, losses: 1, ties: 0, winPct: 0.875, runDiff: 50, runsFor: 114, runsAgainst: 64,
@@ -245,6 +246,7 @@ const seasonsData = {
             division: '25A',
             divisionId: null,
             status: 'upcoming',
+            regularSeasonGames: 14,
             teams: [
             ],
             upcomingGames: [

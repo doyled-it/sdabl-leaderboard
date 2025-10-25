@@ -356,6 +356,7 @@ function generateDataJS(teams, upcomingGames, targetSeasonId) {
         output += `            division: '${season.division}',\n`;
         output += `            divisionId: ${season.divisionId ? `'${season.divisionId}'` : 'null'},\n`;
         output += `            status: '${season.status}',\n`;
+        output += `            regularSeasonGames: ${season.regularSeasonGames || 10},\n`;
         output += '            teams: [\n';
 
         if (season.teams && season.teams.length > 0) {
