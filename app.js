@@ -42,6 +42,223 @@ function hasClinchedPlayoff(team, allTeams) {
     return true;
 }
 
+function getStreak(team) {
+    if (!team.games || team.games.length === 0) return '-';
+
+    const games = [...team.games].reverse(); // Most recent first
+    const currentResult = games[0].result;
+    let streakCount = 0;
+
+    for (const game of games) {
+        if (game.result === currentResult) {
+            streakCount++;
+        } else {
+            break;
+        }
+    }
+
+    const streakLetter = currentResult === 'win' ? 'W' : currentResult === 'loss' ? 'L' : 'T';
+    return `${streakLetter}${streakCount}`;
+}
+
+function getLast5Games(team) {
+    if (!team.games || team.games.length === 0) return '';
+
+    const games = [...team.games].reverse().slice(0, 5); // Most recent 5
+    return games.map(game => {
+        if (game.result === 'win') return '<span class="form-dot win">●</span>';
+        if (game.result === 'loss') return '<span class="form-dot loss">●</span>';
+        return '<span class="form-dot tie">●</span>';
+    }).join('');
+}
+
+function getHeadToHead(team) {
+    const h2h = {};
+
+    team.games.forEach(game => {
+        // Extract opponent name (remove @ or vs prefix)
+        const opponent = game.opponent.replace(/^(@ |vs )/, '');
+
+        if (!h2h[opponent]) {
+            h2h[opponent] = { wins: 0, losses: 0, ties: 0 };
+        }
+
+        if (game.result === 'win') h2h[opponent].wins++;
+        else if (game.result === 'loss') h2h[opponent].losses++;
+        else h2h[opponent].ties++;
+    });
+
+    // Convert to array and sort by opponent name
+    return Object.entries(h2h)
+        .map(([opponent, record]) => ({ opponent, ...record }))
+        .sort((a, b) => a.opponent.localeCompare(b.opponent));
+}
+
+function calculatePlayoffProbability(team, allTeams) {
+    const season = getCurrentSeason();
+    const totalSeasonGames = season.regularSeasonGames || 10;
+    const playoffSpots = 6;
+
+    // If clinched, 100%
+    if (hasClinchedPlayoff(team, allTeams)) {
+        return 100;
+    }
+
+    const teamGamesPlayed = team.wins + team.losses + team.ties;
+    const teamGamesRemaining = totalSeasonGames - teamGamesPlayed;
+
+    // If mathematically eliminated, 0%
+    const teamMaxWins = team.wins + teamGamesRemaining;
+    const sixthPlaceTeam = allTeams[playoffSpots - 1];
+    if (sixthPlaceTeam && teamMaxWins < sixthPlaceTeam.wins) {
+        return 0;
+    }
+
+    // Monte Carlo simulation of remaining games
+    const numSimulations = 1000;
+    const upcomingGames = season.upcomingGames || [];
+
+    // Filter out past games (same logic as populateUpcomingGames)
+    const today = new Date();
+    const currentYear = new Date().getFullYear();
+
+    const futureGames = upcomingGames.filter(game => {
+        const gameDate = new Date(`${game.date}, ${currentYear}`);
+        const dayAfterGame = new Date(gameDate);
+        dayAfterGame.setDate(dayAfterGame.getDate() + 1);  // Add buffer for timezone
+        return dayAfterGame >= today;
+    });
+
+    // Parse all remaining games (only iterate through games once, not per team)
+    const remainingMatchups = [];
+
+    futureGames.forEach(game => {
+        const homeTeam = allTeams.find(t => t.name === game.home);
+        const awayTeam = allTeams.find(t => t.name === game.visitors);
+
+        if (homeTeam && awayTeam) {
+            remainingMatchups.push({ homeTeam, awayTeam, game });
+        }
+    });
+
+    // If no games remaining, fall back to simple calculation
+    if (remainingMatchups.length === 0) {
+        // No games to simulate - return based on current position
+        if (team.rank <= playoffSpots) return 95;
+        return 5;
+    }
+
+    let playoffCount = 0;
+
+    for (let sim = 0; sim < numSimulations; sim++) {
+        // Create simulation standings with current records
+        const simStandings = allTeams.map(t => ({
+            name: t.name,
+            wins: t.wins,
+            losses: t.losses,
+            ties: t.ties,
+            winPct: t.winPct
+        }));
+
+        // Simulate each remaining game
+        remainingMatchups.forEach(matchup => {
+            const { homeTeam, awayTeam } = matchup;
+
+            // Calculate win probability based on win percentages
+            // Home team gets slight boost
+            const homeWinPct = homeTeam.winPct || 0.500;
+            const awayWinPct = awayTeam.winPct || 0.500;
+
+            // Pythagorean-style win probability with home field advantage
+            const homeStrength = Math.pow(homeWinPct, 1.5) * 1.05; // 5% home boost
+            const awayStrength = Math.pow(awayWinPct, 1.5);
+            const homeWinProb = homeStrength / (homeStrength + awayStrength);
+
+            const rand = Math.random();
+            const simHome = simStandings.find(t => t.name === homeTeam.name);
+            const simAway = simStandings.find(t => t.name === awayTeam.name);
+
+            if (rand < homeWinProb) {
+                // Home team wins
+                simHome.wins++;
+                simAway.losses++;
+            } else {
+                // Away team wins
+                simAway.wins++;
+                simHome.losses++;
+            }
+        });
+
+        // Recalculate win percentages and sort
+        simStandings.forEach(t => {
+            const totalGames = t.wins + t.losses + t.ties;
+            t.winPct = totalGames > 0 ? (t.wins + t.ties * 0.5) / totalGames : 0;
+        });
+
+        simStandings.sort((a, b) => {
+            if (b.winPct !== a.winPct) return b.winPct - a.winPct;
+            // Tiebreaker: use current run differential (from original data)
+            const aTeam = allTeams.find(t => t.name === a.name);
+            const bTeam = allTeams.find(t => t.name === b.name);
+            return (bTeam.runDiff || 0) - (aTeam.runDiff || 0);
+        });
+
+        // Check if this team made playoffs
+        const teamFinish = simStandings.findIndex(t => t.name === team.name);
+        if (teamFinish < playoffSpots) {
+            playoffCount++;
+        }
+    }
+
+    return Math.round((playoffCount / numSimulations) * 100);
+}
+
+function getRemainingSchedule(team, allTeams) {
+    const season = getCurrentSeason();
+    const totalSeasonGames = season.regularSeasonGames || 10;
+    const teamGamesPlayed = team.wins + team.losses + team.ties;
+
+    if (teamGamesPlayed >= totalSeasonGames) {
+        return { games: [], difficulty: 0, difficultyLabel: 'Season Complete' };
+    }
+
+    const upcomingGames = season.upcomingGames || [];
+    const remainingGames = upcomingGames.filter(game =>
+        game.home === team.name || game.visitors === team.name
+    );
+
+    if (remainingGames.length === 0) {
+        return { games: [], difficulty: 0, difficultyLabel: 'No Games Scheduled' };
+    }
+
+    // Calculate difficulty based on opponents' win percentage
+    const opponents = remainingGames.map(game => {
+        const opponentName = game.home === team.name ? game.visitors : game.home;
+        const opponent = allTeams.find(t => t.name === opponentName);
+        return {
+            name: opponentName,
+            game: game,
+            winPct: opponent ? opponent.winPct : 0.500,
+            rank: opponent ? opponent.rank : null
+        };
+    });
+
+    const avgOpponentWinPct = opponents.reduce((sum, opp) => sum + opp.winPct, 0) / opponents.length;
+
+    let difficultyLabel = '';
+    if (avgOpponentWinPct >= 0.700) difficultyLabel = 'Very Hard';
+    else if (avgOpponentWinPct >= 0.550) difficultyLabel = 'Hard';
+    else if (avgOpponentWinPct >= 0.450) difficultyLabel = 'Average';
+    else if (avgOpponentWinPct >= 0.300) difficultyLabel = 'Easy';
+    else difficultyLabel = 'Very Easy';
+
+    return {
+        games: opponents,
+        difficulty: avgOpponentWinPct,
+        difficultyLabel: difficultyLabel
+    };
+}
+
 function createTeamRow(team, index) {
     const teamsData = getCurrentTeamsData();
     const hasClinched = hasClinchedPlayoff(team, teamsData);
@@ -61,6 +278,10 @@ function createTeamRow(team, index) {
         ((firstPlaceWinPct - team.winPct) * totalGames / 2).toFixed(1);
 
     const clinchedBadge = hasClinched ? ' <span class="clinched-badge">✓ CLINCHED</span>' : '';
+    const streak = getStreak(team);
+    const last5 = getLast5Games(team);
+    const playoffProb = calculatePlayoffProbability(team, teamsData);
+    const probClass = playoffProb >= 75 ? 'high-prob' : playoffProb >= 25 ? 'med-prob' : 'low-prob';
 
     row.innerHTML = `
         <td class="rank-cell ${hasClinched ? 'clinched' : ''}">${team.rank}</td>
@@ -70,6 +291,9 @@ function createTeamRow(team, index) {
         <td class="stat-cell">${team.ties}</td>
         <td class="stat-cell pct-cell">${team.winPct.toFixed(3)}</td>
         <td class="stat-cell games-behind">${gamesBehind}</td>
+        <td class="stat-cell streak-cell">${streak}</td>
+        <td class="stat-cell form-cell">${last5}</td>
+        <td class="stat-cell playoff-prob ${probClass}">${playoffProb}%</td>
         <td class="stat-cell">${team.runsFor}</td>
         <td class="stat-cell">${team.runsAgainst}</td>
         <td class="stat-cell ${runDiffClass}">${runDiffSymbol}${team.runDiff}</td>
@@ -93,15 +317,72 @@ function createTeamDetails(team) {
         </div>
     `).join('');
 
-    detailsRow.innerHTML = `
-        <td colspan="10">
-            <div class="team-details-content">
-                <div class="games-header">
-                    <span>📊</span>
-                    ${team.name} - Game Results (${team.wins}-${team.losses}${team.ties > 0 ? `-${team.ties}` : ''})
+    const h2hRecords = getHeadToHead(team);
+    const h2hHtml = h2hRecords.map(record => `
+        <div class="h2h-item">
+            <div class="h2h-opponent">${record.opponent}</div>
+            <div class="h2h-record ${record.wins > record.losses ? 'winning' : record.losses > record.wins ? 'losing' : 'even'}">
+                ${record.wins}-${record.losses}${record.ties > 0 ? `-${record.ties}` : ''}
+            </div>
+        </div>
+    `).join('');
+
+    const allTeams = getCurrentTeamsData();
+    const remaining = getRemainingSchedule(team, allTeams);
+    const difficultyClass = remaining.difficulty >= 0.700 ? 'very-hard' :
+                           remaining.difficulty >= 0.550 ? 'hard' :
+                           remaining.difficulty >= 0.450 ? 'average' :
+                           remaining.difficulty >= 0.300 ? 'easy' : 'very-easy';
+
+    const remainingHtml = remaining.games.length > 0 ? remaining.games.map(opp => {
+        const location = opp.game.home === team.name ? 'vs' : '@';
+        const oppDiffClass = opp.winPct >= 0.700 ? 'very-hard' :
+                            opp.winPct >= 0.550 ? 'hard' :
+                            opp.winPct >= 0.450 ? 'average' :
+                            opp.winPct >= 0.300 ? 'easy' : 'very-easy';
+        return `
+            <div class="remaining-game-item ${oppDiffClass}">
+                <div class="remaining-game-info">
+                    <div class="remaining-opponent">${location} ${opp.name}</div>
+                    <div class="remaining-date">${opp.game.day}, ${opp.game.date} • ${opp.game.time}</div>
                 </div>
-                <div class="games-list">
-                    ${gamesHtml}
+                <div class="opponent-record">${opp.rank ? `#${opp.rank}` : ''} (${(opp.winPct * 100).toFixed(0)}%)</div>
+            </div>
+        `;
+    }).join('') : `<div class="no-games">${remaining.difficultyLabel}</div>`;
+
+    detailsRow.innerHTML = `
+        <td colspan="13">
+            <div class="team-details-content">
+                <div class="team-details-grid">
+                    <div class="details-section">
+                        <div class="games-header">
+                            <span>📊</span>
+                            Game Results (${team.wins}-${team.losses}${team.ties > 0 ? `-${team.ties}` : ''})
+                        </div>
+                        <div class="games-list">
+                            ${gamesHtml}
+                        </div>
+                    </div>
+                    <div class="details-section">
+                        <div class="games-header">
+                            <span>🆚</span>
+                            Head-to-Head Records
+                        </div>
+                        <div class="h2h-list">
+                            ${h2hHtml}
+                        </div>
+                    </div>
+                    <div class="details-section full-width">
+                        <div class="games-header">
+                            <span>📅</span>
+                            Remaining Schedule
+                            ${remaining.games.length > 0 ? `<span class="difficulty-badge ${difficultyClass}">${remaining.difficultyLabel}</span>` : ''}
+                        </div>
+                        <div class="remaining-games-list">
+                            ${remainingHtml}
+                        </div>
+                    </div>
                 </div>
             </div>
         </td>
@@ -406,7 +687,7 @@ function populateStandings() {
         if (index === 5 && teamsData.length > 6) {
             const cutoffRow = document.createElement('tr');
             cutoffRow.className = 'playoff-cutoff';
-            cutoffRow.innerHTML = '<td colspan="10"><div class="playoff-line"><span class="playoff-label">Playoff Line</span></div></td>';
+            cutoffRow.innerHTML = '<td colspan="13"><div class="playoff-line"><span class="playoff-label">Playoff Line</span></div></td>';
             tbody.appendChild(cutoffRow);
         }
     });

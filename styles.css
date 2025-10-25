@@ -203,6 +203,10 @@ body {
     width: 60px;
 }
 
+.standings-table th:nth-child(n+3) {
+    text-align: center;
+}
+
 .standings-table tbody tr {
     transition: all 0.3s ease;
     animation: slideInUp 0.6s ease-out forwards;
@@ -327,6 +331,174 @@ body {
     color: #FFA500;
 }
 
+/* Team Details Grid */
+.team-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+}
+
+.details-section {
+    min-width: 0;
+}
+
+/* Head-to-Head Section */
+.h2h-list {
+    display: grid;
+    gap: 8px;
+}
+
+.h2h-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.h2h-item:hover {
+    background: rgba(255,255,255,0.1);
+    transform: translateX(4px);
+}
+
+.h2h-opponent {
+    font-weight: 600;
+}
+
+.h2h-record {
+    font-weight: 700;
+    font-size: 1.1rem;
+    font-family: 'Courier New', monospace;
+}
+
+.h2h-record.winning {
+    color: #4CAF50;
+}
+
+.h2h-record.losing {
+    color: #f44336;
+}
+
+.h2h-record.even {
+    color: #FFA500;
+}
+
+/* Remaining Schedule Section */
+.details-section.full-width {
+    grid-column: 1 / -1;
+}
+
+.difficulty-badge {
+    margin-left: auto;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.difficulty-badge.very-hard {
+    background: rgba(244, 67, 54, 0.2);
+    color: #f44336;
+    border: 1px solid #f44336;
+}
+
+.difficulty-badge.hard {
+    background: rgba(255, 152, 0, 0.2);
+    color: #FF9800;
+    border: 1px solid #FF9800;
+}
+
+.difficulty-badge.average {
+    background: rgba(255, 193, 7, 0.2);
+    color: #FFC107;
+    border: 1px solid #FFC107;
+}
+
+.difficulty-badge.easy {
+    background: rgba(139, 195, 74, 0.2);
+    color: #8BC34A;
+    border: 1px solid #8BC34A;
+}
+
+.difficulty-badge.very-easy {
+    background: rgba(76, 175, 80, 0.2);
+    color: #4CAF50;
+    border: 1px solid #4CAF50;
+}
+
+.remaining-games-list {
+    display: grid;
+    gap: 8px;
+}
+
+.remaining-game-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    border-left: 3px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.remaining-game-item:hover {
+    background: rgba(255,255,255,0.1);
+    transform: translateX(4px);
+}
+
+.remaining-game-item.very-hard {
+    border-left-color: #f44336;
+}
+
+.remaining-game-item.hard {
+    border-left-color: #FF9800;
+}
+
+.remaining-game-item.average {
+    border-left-color: #FFC107;
+}
+
+.remaining-game-item.easy {
+    border-left-color: #8BC34A;
+}
+
+.remaining-game-item.very-easy {
+    border-left-color: #4CAF50;
+}
+
+.remaining-game-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.remaining-opponent {
+    font-weight: 600;
+}
+
+.remaining-date {
+    font-size: 0.85rem;
+    color: #a0a8cc;
+}
+
+.opponent-record {
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+    color: #FFC107;
+}
+
+.no-games {
+    text-align: center;
+    padding: 20px;
+    color: #a0a8cc;
+    font-style: italic;
+}
+
 .click-hint {
     font-size: 0.75rem;
     color: #a0a8cc;
@@ -413,6 +585,57 @@ body {
 }
 
 .negative {
+    color: #f44336;
+}
+
+/* Streak and Form Indicators */
+.streak-cell {
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+}
+
+.form-cell {
+    text-align: center;
+    white-space: nowrap;
+    letter-spacing: 2px;
+}
+
+.form-dot {
+    font-size: 1.2rem;
+    display: inline-block;
+}
+
+.form-dot.win {
+    color: #4CAF50;
+    text-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+}
+
+.form-dot.loss {
+    color: #f44336;
+    text-shadow: 0 0 8px rgba(244, 67, 54, 0.6);
+}
+
+.form-dot.tie {
+    color: #9E9E9E;
+    text-shadow: 0 0 8px rgba(158, 158, 158, 0.6);
+}
+
+/* Playoff Probability */
+.playoff-prob {
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+}
+
+.playoff-prob.high-prob {
+    color: #4CAF50;
+    text-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
+}
+
+.playoff-prob.med-prob {
+    color: #FFA500;
+}
+
+.playoff-prob.low-prob {
     color: #f44336;
 }
 
@@ -901,6 +1124,11 @@ body {
     .team-name-cell {
         min-width: 140px;
         font-size: 1rem;
+    }
+
+    .team-details-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
     }
 
     .leaders-section {
