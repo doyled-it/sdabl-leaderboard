@@ -437,23 +437,43 @@ body {
 }
 
 .bracket {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 30px;
-    max-width: 1100px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 40px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
-    align-items: center;
 }
 
-.bracket-round {
+.bracket-column {
     display: flex;
     flex-direction: column;
-    gap: 40px;
+    position: relative;
 }
 
-.bracket-round.semifinals {
-    gap: 100px;
+.bracket-games {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    min-height: 400px;
+}
+
+.bracket-games.championship-game {
+    justify-content: center;
+    min-height: 400px;
+}
+
+.bracket-spacer {
+    height: 80px;
+}
+
+/* Bracket clinched indicator */
+.bracket-clinched {
+    color: #4CAF50;
+    font-size: 0.9rem;
+    margin-left: 4px;
+    filter: drop-shadow(0 0 8px rgba(76, 175, 80, 0.6));
 }
 
 .round-header {
@@ -469,6 +489,7 @@ body {
 }
 
 .matchup {
+    position: relative;
     background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%);
     border: 2px solid rgba(255,255,255,0.25);
     border-radius: 12px;
@@ -476,6 +497,7 @@ body {
     overflow: hidden;
     transition: all 0.3s ease;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    width: 280px;
 }
 
 .matchup:hover {
@@ -903,16 +925,38 @@ body {
         grid-template-columns: 1fr;
     }
 
+    /* Mobile bracket - vertical layout */
     .bracket {
-        grid-template-columns: 1fr;
-        gap: 40px;
+        flex-direction: column;
+        gap: 30px;
+        align-items: stretch;
     }
 
-    .bracket-round.semifinals {
-        gap: 40px;
+    .bracket-column {
+        width: 100%;
+    }
+
+    .bracket-games {
+        min-height: auto;
+        gap: 20px;
+    }
+
+    .bracket-games.championship-game {
+        min-height: auto;
+    }
+
+    .bracket-spacer {
+        height: 20px;
+    }
+
+    .matchup {
+        width: 100%;
+        max-width: 400px;
+        margin: 0 auto;
     }
 
     .round-header {
         font-size: 0.9rem;
+        margin-bottom: 15px;
     }
 }

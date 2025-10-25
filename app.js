@@ -184,34 +184,42 @@ function populatePlayoffBracket() {
     const playoffs = season.playoffs || {};
 
     bracket.innerHTML = `
-        <div class="bracket-round">
+        <div class="bracket-column">
             <div class="round-header">Quarterfinals</div>
-            <div class="matchup">
-                ${createMatchupHTML(playoffTeams[2], playoffTeams[5], playoffs.qf1)}
-                <div class="matchup-status">${playoffs.qf1 ? '' : 'To Be Played'}</div>
-            </div>
-            <div class="matchup">
-                ${createMatchupHTML(playoffTeams[3], playoffTeams[4], playoffs.qf2)}
-                <div class="matchup-status">${playoffs.qf2 ? '' : 'To Be Played'}</div>
+            <div class="bracket-games">
+                <div class="matchup">
+                    ${createMatchupHTML(playoffTeams[2], playoffTeams[5], playoffs.qf1)}
+                    <div class="matchup-status">${playoffs.qf1 ? '' : 'To Be Played'}</div>
+                </div>
+                <div class="bracket-spacer"></div>
+                <div class="matchup">
+                    ${createMatchupHTML(playoffTeams[3], playoffTeams[4], playoffs.qf2)}
+                    <div class="matchup-status">${playoffs.qf2 ? '' : 'To Be Played'}</div>
+                </div>
             </div>
         </div>
 
-        <div class="bracket-round semifinals">
+        <div class="bracket-column">
             <div class="round-header">Semifinals</div>
-            <div class="matchup ${!playoffs.qf1 ? 'bye' : ''}">
-                ${playoffs.qf1 ? createMatchupHTML(playoffTeams[0], playoffs.qf1.winner, playoffs.sf1) : createByeHTML(playoffTeams[0])}
-                ${playoffs.qf1 ? `<div class="matchup-status">${playoffs.sf1 ? '' : 'To Be Played'}</div>` : ''}
-            </div>
-            <div class="matchup ${!playoffs.qf2 ? 'bye' : ''}">
-                ${playoffs.qf2 ? createMatchupHTML(playoffTeams[1], playoffs.qf2.winner, playoffs.sf2) : createByeHTML(playoffTeams[1])}
-                ${playoffs.qf2 ? `<div class="matchup-status">${playoffs.sf2 ? '' : 'To Be Played'}</div>` : ''}
+            <div class="bracket-games">
+                <div class="matchup ${!playoffs.qf1 ? 'bye' : ''}">
+                    ${playoffs.qf1 ? createMatchupHTML(playoffTeams[0], playoffs.qf1.winner, playoffs.sf1) : createByeHTML(playoffTeams[0])}
+                    ${playoffs.qf1 ? `<div class="matchup-status">${playoffs.sf1 ? '' : 'To Be Played'}</div>` : ''}
+                </div>
+                <div class="bracket-spacer"></div>
+                <div class="matchup ${!playoffs.qf2 ? 'bye' : ''}">
+                    ${playoffs.qf2 ? createMatchupHTML(playoffTeams[1], playoffs.qf2.winner, playoffs.sf2) : createByeHTML(playoffTeams[1])}
+                    ${playoffs.qf2 ? `<div class="matchup-status">${playoffs.sf2 ? '' : 'To Be Played'}</div>` : ''}
+                </div>
             </div>
         </div>
 
-        <div class="bracket-round">
+        <div class="bracket-column">
             <div class="round-header">Championship</div>
-            <div class="matchup ${!playoffs.sf1 || !playoffs.sf2 ? 'bye' : ''}">
-                ${playoffs.sf1 && playoffs.sf2 ? createMatchupHTML(playoffs.sf1.winner, playoffs.sf2.winner, playoffs.championship) + `<div class="matchup-status">${playoffs.championship ? '' : 'To Be Played'}</div>` : createChampionshipTBD()}
+            <div class="bracket-games championship-game">
+                <div class="matchup ${!playoffs.sf1 || !playoffs.sf2 ? 'bye' : ''}">
+                    ${playoffs.sf1 && playoffs.sf2 ? createMatchupHTML(playoffs.sf1.winner, playoffs.sf2.winner, playoffs.championship) + `<div class="matchup-status">${playoffs.championship ? '' : 'To Be Played'}</div>` : createChampionshipTBD()}
+                </div>
             </div>
         </div>
     `;
@@ -231,26 +239,34 @@ function createMatchupHTML(team1, team2, result) {
     const team1Score = result?.score1 || '';
     const team2Score = result?.score2 || '';
 
+    // Check if teams have clinched playoffs
+    const allTeams = getCurrentTeamsData();
+    const team1Clinched = team1.rank && hasClinchedPlayoff(team1, allTeams) ? ' <span class="bracket-clinched">✓</span>' : '';
+    const team2Clinched = team2.rank && hasClinchedPlayoff(team2, allTeams) ? ' <span class="bracket-clinched">✓</span>' : '';
+
     return `
         <div class="matchup-team ${team1Class}">
             <span class="team-seed">${team1Seed}</span>
-            <span class="team-name-bracket">${team1Name}</span>
+            <span class="team-name-bracket">${team1Name}${team1Clinched}</span>
             ${team1Score ? `<span class="team-score">${team1Score}</span>` : ''}
         </div>
         <div class="matchup-team ${team2Class}">
             <span class="team-seed">${team2Seed}</span>
-            <span class="team-name-bracket">${team2Name}</span>
+            <span class="team-name-bracket">${team2Name}${team2Clinched}</span>
             ${team2Score ? `<span class="team-score">${team2Score}</span>` : ''}
         </div>
     `;
 }
 
 function createByeHTML(team) {
+    const allTeams = getCurrentTeamsData();
+    const clinched = hasClinchedPlayoff(team, allTeams) ? ' <span class="bracket-clinched">✓</span>' : '';
+
     return `
         <div class="bye-label">
             <div class="bye-team-info">
                 <span class="team-seed">${team.rank}</span>
-                <span>${team.name}</span>
+                <span>${team.name}${clinched}</span>
             </div>
             <div class="bye-text">First Round BYE</div>
         </div>
