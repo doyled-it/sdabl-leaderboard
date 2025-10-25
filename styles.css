@@ -416,6 +416,177 @@ body {
     color: #f44336;
 }
 
+/* Playoff Bracket Section */
+.playoff-bracket-container {
+    margin-top: 40px;
+    margin-bottom: 40px;
+    animation: fadeInUp 0.8s ease-out 0.3s both;
+}
+
+.bracket-title {
+    font-size: 2rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 40px;
+    background: linear-gradient(45deg, #FFD700, #FFA500);
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradientShift 3s ease-in-out infinite;
+}
+
+.bracket {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 30px;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 20px;
+    align-items: center;
+}
+
+.bracket-round {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+.bracket-round.semifinals {
+    gap: 100px;
+}
+
+.round-header {
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #FFC107;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid rgba(255, 193, 7, 0.3);
+}
+
+.matchup {
+    background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%);
+    border: 2px solid rgba(255,255,255,0.25);
+    border-radius: 12px;
+    padding: 0;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.matchup:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 193, 7, 0.2);
+    border-color: rgba(255, 193, 7, 0.4);
+}
+
+.matchup.bye {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.15) 0%, rgba(255, 152, 0, 0.1) 100%);
+    border: 2px dashed rgba(255, 193, 7, 0.4);
+}
+
+.matchup-team {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.2s ease;
+}
+
+.matchup-team:last-child {
+    border-bottom: none;
+}
+
+.matchup-team:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.matchup-team.winner {
+    background: linear-gradient(90deg, rgba(76, 175, 80, 0.25) 0%, rgba(76, 175, 80, 0.15) 100%);
+    border-left: 4px solid #4CAF50;
+}
+
+.matchup-team.loser {
+    opacity: 0.5;
+}
+
+.team-seed {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.4) 0%, rgba(255, 152, 0, 0.3) 100%);
+    border: 2px solid #FFC107;
+    border-radius: 50%;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #FFC107;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.team-name-bracket {
+    flex-grow: 1;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.team-score {
+    font-weight: 700;
+    font-size: 1.2rem;
+    margin-left: 12px;
+    min-width: 35px;
+    text-align: right;
+    color: #FFC107;
+}
+
+.matchup-status {
+    text-align: center;
+    font-size: 0.7rem;
+    color: #a0a8cc;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    font-style: italic;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.bye-label {
+    text-align: center;
+    padding: 30px 20px;
+}
+
+.bye-team-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #FFC107;
+    margin-bottom: 10px;
+}
+
+.bye-text {
+    font-size: 0.75rem;
+    color: #a0a8cc;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.championship-tbd {
+    text-align: center;
+    padding: 40px 20px;
+    color: #a0a8cc;
+    font-size: 0.9rem;
+}
+
 /* Upcoming Games Section */
 .upcoming-games-container {
     margin-top: 40px;
@@ -730,5 +901,18 @@ body {
 
     .upcoming-games-grid {
         grid-template-columns: 1fr;
+    }
+
+    .bracket {
+        grid-template-columns: 1fr;
+        gap: 40px;
+    }
+
+    .bracket-round.semifinals {
+        gap: 40px;
+    }
+
+    .round-header {
+        font-size: 0.9rem;
     }
 }

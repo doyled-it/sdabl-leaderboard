@@ -164,6 +164,107 @@ function updateSeasonProgress() {
     progressStats.textContent = `${maxGamesPlayed} / ${totalSeasonGames} Games`;
 }
 
+function populatePlayoffBracket() {
+    const season = getCurrentSeason();
+    const bracketContainer = document.getElementById('playoffBracketContainer');
+    const bracket = document.getElementById('playoffBracket');
+
+    // Hide bracket for upcoming seasons or if less than 6 teams
+    if (season.status === 'upcoming' || season.teams.length < 6) {
+        bracketContainer.style.display = 'none';
+        return;
+    }
+
+    bracketContainer.style.display = 'block';
+
+    const teamsData = getCurrentTeamsData();
+    const playoffTeams = teamsData.slice(0, 6); // Top 6 teams
+
+    // Get playoff data if it exists (for future seasons with completed playoffs)
+    const playoffs = season.playoffs || {};
+
+    bracket.innerHTML = `
+        <div class="bracket-round">
+            <div class="round-header">Quarterfinals</div>
+            <div class="matchup">
+                ${createMatchupHTML(playoffTeams[2], playoffTeams[5], playoffs.qf1)}
+                <div class="matchup-status">${playoffs.qf1 ? '' : 'To Be Played'}</div>
+            </div>
+            <div class="matchup">
+                ${createMatchupHTML(playoffTeams[3], playoffTeams[4], playoffs.qf2)}
+                <div class="matchup-status">${playoffs.qf2 ? '' : 'To Be Played'}</div>
+            </div>
+        </div>
+
+        <div class="bracket-round semifinals">
+            <div class="round-header">Semifinals</div>
+            <div class="matchup ${!playoffs.qf1 ? 'bye' : ''}">
+                ${playoffs.qf1 ? createMatchupHTML(playoffTeams[0], playoffs.qf1.winner, playoffs.sf1) : createByeHTML(playoffTeams[0])}
+                ${playoffs.qf1 ? `<div class="matchup-status">${playoffs.sf1 ? '' : 'To Be Played'}</div>` : ''}
+            </div>
+            <div class="matchup ${!playoffs.qf2 ? 'bye' : ''}">
+                ${playoffs.qf2 ? createMatchupHTML(playoffTeams[1], playoffs.qf2.winner, playoffs.sf2) : createByeHTML(playoffTeams[1])}
+                ${playoffs.qf2 ? `<div class="matchup-status">${playoffs.sf2 ? '' : 'To Be Played'}</div>` : ''}
+            </div>
+        </div>
+
+        <div class="bracket-round">
+            <div class="round-header">Championship</div>
+            <div class="matchup ${!playoffs.sf1 || !playoffs.sf2 ? 'bye' : ''}">
+                ${playoffs.sf1 && playoffs.sf2 ? createMatchupHTML(playoffs.sf1.winner, playoffs.sf2.winner, playoffs.championship) + `<div class="matchup-status">${playoffs.championship ? '' : 'To Be Played'}</div>` : createChampionshipTBD()}
+            </div>
+        </div>
+    `;
+}
+
+function createMatchupHTML(team1, team2, result) {
+    if (!team1 || !team2) return '';
+
+    const team1Seed = team1.rank || '?';
+    const team2Seed = team2.rank || '?';
+    const team1Name = team1.name || team1;
+    const team2Name = team2.name || team2;
+
+    const team1Class = result?.winner?.name === team1Name ? 'winner' : result ? 'loser' : '';
+    const team2Class = result?.winner?.name === team2Name ? 'winner' : result ? 'loser' : '';
+
+    const team1Score = result?.score1 || '';
+    const team2Score = result?.score2 || '';
+
+    return `
+        <div class="matchup-team ${team1Class}">
+            <span class="team-seed">${team1Seed}</span>
+            <span class="team-name-bracket">${team1Name}</span>
+            ${team1Score ? `<span class="team-score">${team1Score}</span>` : ''}
+        </div>
+        <div class="matchup-team ${team2Class}">
+            <span class="team-seed">${team2Seed}</span>
+            <span class="team-name-bracket">${team2Name}</span>
+            ${team2Score ? `<span class="team-score">${team2Score}</span>` : ''}
+        </div>
+    `;
+}
+
+function createByeHTML(team) {
+    return `
+        <div class="bye-label">
+            <div class="bye-team-info">
+                <span class="team-seed">${team.rank}</span>
+                <span>${team.name}</span>
+            </div>
+            <div class="bye-text">First Round BYE</div>
+        </div>
+    `;
+}
+
+function createChampionshipTBD() {
+    return `
+        <div class="championship-tbd">
+            Awaiting Semifinal Results
+        </div>
+    `;
+}
+
 function populateLeaders() {
     const season = getCurrentSeason();
     const leadersContainer = document.getElementById('leadersSection');
@@ -178,9 +279,6 @@ function populateLeaders() {
 
     const teamsData = getCurrentTeamsData();
 
-    // Top Teams (by rank)
-    const topTeams = teamsData.slice(0, 3);
-
     // Offensive Leaders (by runs scored)
     const offensiveLeaders = [...teamsData]
         .sort((a, b) => b.runsFor - a.runsFor)
@@ -192,18 +290,6 @@ function populateLeaders() {
         .slice(0, 3);
 
     // Build HTML
-    const topTeamsHtml = topTeams.map(team => {
-        const record = `${team.wins}-${team.losses}${team.ties > 0 ? `-${team.ties}` : ''}`;
-        const runDiffClass = team.runDiff > 0 ? 'positive' : team.runDiff < 0 ? 'negative' : '';
-        const runDiffSymbol = team.runDiff > 0 ? '+' : '';
-        return `
-            <li class="leader-item">
-                <span><strong>${team.name}</strong> (${record})</span>
-                <span class="${runDiffClass}">${runDiffSymbol}${team.runDiff} run diff</span>
-            </li>
-        `;
-    }).join('');
-
     const offensiveHtml = offensiveLeaders.map(team => `
         <li class="leader-item">
             <span><strong>${team.name}</strong></span>
@@ -219,16 +305,6 @@ function populateLeaders() {
     `).join('');
 
     leadersContainer.innerHTML = `
-        <div class="leader-card">
-            <h3 class="leader-title">
-                <span class="emoji">🏆</span>
-                Top Teams
-            </h3>
-            <ul class="leader-list">
-                ${topTeamsHtml}
-            </ul>
-        </div>
-
         <div class="leader-card">
             <h3 class="leader-title">
                 <span class="emoji">🔥</span>
@@ -271,6 +347,8 @@ function populateStandings() {
         hideUpcomingGames();
         // Hide progress indicator
         updateSeasonProgress();
+        // Hide playoff bracket
+        populatePlayoffBracket();
         // Hide leader cards
         populateLeaders();
         return;
@@ -323,6 +401,9 @@ function populateStandings() {
     // Update season progress
     updateSeasonProgress();
 
+    // Populate playoff bracket
+    populatePlayoffBracket();
+
     // Populate leader cards
     populateLeaders();
 }
@@ -337,12 +418,30 @@ function populateUpcomingGames() {
         return;
     }
 
+    // Filter out past games
+    const today = new Date();
+    const currentYear = new Date().getFullYear();
+
+    const futureGames = season.upcomingGames.filter(game => {
+        // Parse the date string (e.g., "Nov 2" or "Oct 19")
+        const gameDate = new Date(`${game.date}, ${currentYear}`);
+        // Add one day buffer to account for timezone differences
+        const dayAfterGame = new Date(gameDate);
+        dayAfterGame.setDate(dayAfterGame.getDate() + 1);
+        return dayAfterGame >= today;
+    });
+
+    if (futureGames.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
     container.style.display = 'block';
     grid.innerHTML = '';
 
     // Group games by date
     const gamesByDate = {};
-    season.upcomingGames.forEach(game => {
+    futureGames.forEach(game => {
         const dateKey = `${game.day}, ${game.date}`;
         if (!gamesByDate[dateKey]) {
             gamesByDate[dateKey] = [];
