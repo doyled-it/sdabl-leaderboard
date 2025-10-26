@@ -385,6 +385,78 @@ body {
     color: #FFA500;
 }
 
+/* Playoff Probability Chart */
+.chart-container {
+    padding: 10px 0;
+}
+
+.playoff-chart {
+    width: 100%;
+    max-width: 600px;
+    height: auto;
+    margin: 0 auto;
+    display: block;
+}
+
+.grid-line {
+    stroke: rgba(255, 255, 255, 0.1);
+    stroke-width: 1;
+}
+
+.grid-line.playoff-line {
+    stroke: rgba(255, 193, 7, 0.3);
+    stroke-width: 2;
+    stroke-dasharray: 5, 5;
+}
+
+.axis-label {
+    fill: #a0a8cc;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+}
+
+.playoff-chart-line {
+    stroke: #FFC107;
+    stroke-width: 3;
+    fill: none;
+    filter: drop-shadow(0 0 4px rgba(255, 193, 7, 0.4));
+}
+
+.chart-point {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.chart-point.win {
+    fill: #4CAF50;
+    stroke: #4CAF50;
+    stroke-width: 2;
+}
+
+.chart-point.loss {
+    fill: #f44336;
+    stroke: #f44336;
+    stroke-width: 2;
+}
+
+.chart-point.tie {
+    fill: #9E9E9E;
+    stroke: #9E9E9E;
+    stroke-width: 2;
+}
+
+.chart-point:hover {
+    r: 6;
+    filter: drop-shadow(0 0 8px currentColor);
+}
+
+.no-data {
+    text-align: center;
+    padding: 40px 20px;
+    color: #a0a8cc;
+    font-style: italic;
+}
+
 /* Remaining Schedule Section */
 .details-section.full-width {
     grid-column: 1 / -1;
@@ -971,6 +1043,75 @@ body {
 
 .game-venue-display::before {
     content: "📍";
+}
+
+.win-probability-container {
+    margin: 12px 0;
+}
+
+.win-prob-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    padding: 0 4px;
+}
+
+.win-prob-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    opacity: 0.7;
+}
+
+.win-prob-label.visitor-label {
+    color: #8BC34A;
+}
+
+.win-prob-label.home-label {
+    color: #2196F3;
+}
+
+.win-probability-bar {
+    display: flex;
+    height: 32px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.win-prob-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.win-prob-section.away {
+    background: linear-gradient(90deg, rgba(139, 195, 74, 0.3), rgba(139, 195, 74, 0.5));
+    border-right: 1px solid rgba(255,255,255,0.1);
+}
+
+.win-prob-section.home {
+    background: linear-gradient(90deg, rgba(33, 150, 243, 0.5), rgba(33, 150, 243, 0.3));
+}
+
+.win-prob-text {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    padding: 0 8px;
+}
+
+.upcoming-game-card:hover .win-prob-section.away {
+    background: linear-gradient(90deg, rgba(139, 195, 74, 0.5), rgba(139, 195, 74, 0.7));
+}
+
+.upcoming-game-card:hover .win-prob-section.home {
+    background: linear-gradient(90deg, rgba(33, 150, 243, 0.7), rgba(33, 150, 243, 0.5));
 }
 
 .leaders-section {

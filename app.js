@@ -72,26 +72,254 @@ function getLast5Games(team) {
     }).join('');
 }
 
-function getHeadToHead(team) {
-    const h2h = {};
+function parseDateToComparable(dateStr, year = new Date().getFullYear()) {
+    // Parse "Sep 7" or "Oct 19" format into a comparable Date
+    const months = {
+        'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+        'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+    };
 
-    team.games.forEach(game => {
-        // Extract opponent name (remove @ or vs prefix)
-        const opponent = game.opponent.replace(/^(@ |vs )/, '');
+    const parts = dateStr.split(' ');
+    if (parts.length === 2) {
+        const month = months[parts[0]];
+        const day = parseInt(parts[1]);
+        return new Date(year, month, day);
+    }
+    return null;
+}
 
-        if (!h2h[opponent]) {
-            h2h[opponent] = { wins: 0, losses: 0, ties: 0 };
+function runMonteCarloSimulation(targetTeam, allTeams, upcomingGames, season) {
+    const totalSeasonGames = season.regularSeasonGames || 10;
+    const playoffSpots = 6;
+    const numSimulations = 1000;
+
+    // Parse all remaining games
+    const remainingMatchups = [];
+
+    upcomingGames.forEach(game => {
+        const homeTeam = allTeams.find(t => t.name === game.home);
+        const awayTeam = allTeams.find(t => t.name === game.visitors);
+
+        if (homeTeam && awayTeam) {
+            remainingMatchups.push({ homeTeam, awayTeam, game });
         }
-
-        if (game.result === 'win') h2h[opponent].wins++;
-        else if (game.result === 'loss') h2h[opponent].losses++;
-        else h2h[opponent].ties++;
     });
 
-    // Convert to array and sort by opponent name
-    return Object.entries(h2h)
-        .map(([opponent, record]) => ({ opponent, ...record }))
-        .sort((a, b) => a.opponent.localeCompare(b.opponent));
+    // If no games remaining, fall back to simple calculation
+    if (remainingMatchups.length === 0) {
+        // No games to simulate - return based on current position
+        if (targetTeam.rank <= playoffSpots) return 95;
+        return 5;
+    }
+
+    let playoffCount = 0;
+
+    for (let sim = 0; sim < numSimulations; sim++) {
+        // Create simulation standings with current records
+        const simStandings = allTeams.map(t => ({
+            name: t.name,
+            wins: t.wins,
+            losses: t.losses,
+            ties: t.ties,
+            winPct: t.winPct
+        }));
+
+        // Simulate each remaining game
+        remainingMatchups.forEach(matchup => {
+            const { homeTeam, awayTeam } = matchup;
+
+            // Get runs for/against from original team data
+            const homeRF = homeTeam.runsFor || 1;
+            const homeRA = homeTeam.runsAgainst || 1;
+            const awayRF = awayTeam.runsFor || 1;
+            const awayRA = awayTeam.runsAgainst || 1;
+
+            // Pythagorean win% formula for baseball (exponent ~1.83)
+            const exponent = 1.83;
+            const homePythWinPct = Math.pow(homeRF, exponent) / (Math.pow(homeRF, exponent) + Math.pow(homeRA, exponent));
+            const awayPythWinPct = Math.pow(awayRF, exponent) / (Math.pow(awayRF, exponent) + Math.pow(awayRA, exponent));
+
+            // Blend actual win% with Pythagorean win% (70% Pyth, 30% actual)
+            const homeExpWinPct = (homePythWinPct * 0.7) + (homeTeam.winPct * 0.3);
+            const awayExpWinPct = (awayPythWinPct * 0.7) + (awayTeam.winPct * 0.3);
+
+            // Matchup-specific prediction
+            const homeOffenseVsAwayDefense = homeRF / awayRA;
+            const awayOffenseVsHomeDefense = awayRF / homeRA;
+
+            // Combined strength - home gets 5% boost
+            const homeStrength = (homeExpWinPct * 0.6 + homeOffenseVsAwayDefense * 0.4) * 1.05;
+            const awayStrength = (awayExpWinPct * 0.6 + awayOffenseVsHomeDefense * 0.4);
+
+            // Calculate win probability
+            const homeWinProb = homeStrength / (homeStrength + awayStrength);
+
+            const rand = Math.random();
+            const simHome = simStandings.find(t => t.name === homeTeam.name);
+            const simAway = simStandings.find(t => t.name === awayTeam.name);
+
+            if (rand < homeWinProb) {
+                simHome.wins++;
+                simAway.losses++;
+            } else {
+                simAway.wins++;
+                simHome.losses++;
+            }
+        });
+
+        // Recalculate win percentages and sort
+        simStandings.forEach(t => {
+            const totalGames = t.wins + t.losses + t.ties;
+            t.winPct = totalGames > 0 ? (t.wins + t.ties * 0.5) / totalGames : 0;
+        });
+
+        simStandings.sort((a, b) => {
+            if (b.winPct !== a.winPct) return b.winPct - a.winPct;
+            // Tiebreaker: use current run differential (from original data)
+            const aTeam = allTeams.find(t => t.name === a.name);
+            const bTeam = allTeams.find(t => t.name === b.name);
+            return (bTeam.runDiff || 0) - (aTeam.runDiff || 0);
+        });
+
+        // Check if target team made playoffs
+        const teamFinish = simStandings.findIndex(t => t.name === targetTeam.name);
+        if (teamFinish < playoffSpots) {
+            playoffCount++;
+        }
+    }
+
+    return Math.round((playoffCount / numSimulations) * 100);
+}
+
+function calculatePlayoffProbabilityHistory(team, allTeams) {
+    const history = [];
+    const season = getCurrentSeason();
+    const currentYear = new Date().getFullYear();
+
+    // Get all completed and upcoming games from the season data
+    const allScheduledGames = [];
+
+    // Add completed games from team data
+    allTeams.forEach(t => {
+        t.games.forEach(g => {
+            const isHome = g.opponent.startsWith('vs ');
+            const opponentName = g.opponent.replace(/^(vs |@ )/, '');
+
+            allScheduledGames.push({
+                date: g.date,
+                home: isHome ? t.name : opponentName,
+                visitors: isHome ? opponentName : t.name,
+                completed: true
+            });
+        });
+    });
+
+    // Add upcoming games
+    (season.upcomingGames || []).forEach(g => {
+        allScheduledGames.push({
+            date: g.date,
+            home: g.home,
+            visitors: g.visitors,
+            completed: false
+        });
+    });
+
+    // For each game this team played, calculate what their playoff % was at that point
+    team.games.forEach((game, gameIndex) => {
+        const gameDate = parseDateToComparable(game.date, currentYear);
+
+        // Reconstruct all teams' records at this point in the season (after this game)
+        // IMPORTANT: Use DATE to determine which games to include, not index!
+        const teamsAtThisPoint = allTeams.map(t => {
+            // Include all games played by this team up to and including the current date
+            const gamesUpToNow = t.games.filter(g => {
+                const gDate = parseDateToComparable(g.date, currentYear);
+                return gDate && gameDate && gDate <= gameDate;
+            });
+
+            let wins = 0, losses = 0, ties = 0, runsFor = 0, runsAgainst = 0;
+
+            gamesUpToNow.forEach(g => {
+                if (g.result === 'win') wins++;
+                else if (g.result === 'loss') losses++;
+                else ties++;
+
+                // Score format is ALWAYS "ThisTeam-Opponent", regardless of home/away
+                const scoreParts = g.score.split('-');
+                if (scoreParts.length === 2) {
+                    const teamScore = parseInt(scoreParts[0]);
+                    const opponentScore = parseInt(scoreParts[1]);
+                    runsFor += teamScore;
+                    runsAgainst += opponentScore;
+                }
+            });
+
+            const totalGames = wins + losses + ties;
+            const winPct = totalGames > 0 ? (wins + ties * 0.5) / totalGames : 0;
+
+            return {
+                name: t.name,
+                wins,
+                losses,
+                ties,
+                winPct,
+                runsFor: runsFor || 1,
+                runsAgainst: runsAgainst || 1,
+                runDiff: runsFor - runsAgainst,
+                rank: 0
+            };
+        });
+
+        // Sort teams by win percentage to get rankings at this point
+        teamsAtThisPoint.sort((a, b) => {
+            if (b.winPct !== a.winPct) return b.winPct - a.winPct;
+            return b.runDiff - a.runDiff;
+        });
+
+        teamsAtThisPoint.forEach((t, idx) => {
+            t.rank = idx + 1;
+        });
+
+        // Find this team in the reconstructed standings
+        const teamAtThisPoint = teamsAtThisPoint.find(t => t.name === team.name);
+
+        // Get games that were still upcoming at this point in time
+        const upcomingAtThisPoint = allScheduledGames.filter(g => {
+            const scheduledGameDate = parseDateToComparable(g.date, currentYear);
+            return scheduledGameDate && gameDate && scheduledGameDate > gameDate;
+        }).map(g => ({ date: g.date, home: g.home, visitors: g.visitors }));
+
+        // Calculate playoff probability using the SAME Monte Carlo logic
+        const hadClinched = hasClinchedPlayoff(teamAtThisPoint, teamsAtThisPoint);
+
+        let probability;
+        if (hadClinched) {
+            probability = 100;
+        } else {
+            const gamesPlayed = teamAtThisPoint.wins + teamAtThisPoint.losses + teamAtThisPoint.ties;
+            const gamesRemaining = (season.regularSeasonGames || 10) - gamesPlayed;
+            const maxWins = teamAtThisPoint.wins + gamesRemaining;
+            const sixthPlace = teamsAtThisPoint[5];
+
+            if (sixthPlace && maxWins < sixthPlace.wins) {
+                probability = 0;
+            } else {
+                // Run the same Monte Carlo simulation with the games that were upcoming at that time
+                probability = runMonteCarloSimulation(teamAtThisPoint, teamsAtThisPoint, upcomingAtThisPoint, season);
+            }
+        }
+
+        history.push({
+            gameNumber: gameIndex + 1,
+            date: game.date,
+            probability: probability,
+            result: game.result,
+            opponent: game.opponent,
+            score: game.score
+        });
+    });
+
+    return history;
 }
 
 function calculatePlayoffProbability(team, allTeams) {
@@ -114,14 +342,11 @@ function calculatePlayoffProbability(team, allTeams) {
         return 0;
     }
 
-    // Monte Carlo simulation of remaining games
-    const numSimulations = 1000;
-    const upcomingGames = season.upcomingGames || [];
-
-    // Filter out past games (same logic as populateUpcomingGames)
+    // Filter out past games
     const today = new Date();
     const currentYear = new Date().getFullYear();
 
+    const upcomingGames = season.upcomingGames || [];
     const futureGames = upcomingGames.filter(game => {
         const gameDate = new Date(`${game.date}, ${currentYear}`);
         const dayAfterGame = new Date(gameDate);
@@ -129,112 +354,8 @@ function calculatePlayoffProbability(team, allTeams) {
         return dayAfterGame >= today;
     });
 
-    // Parse all remaining games (only iterate through games once, not per team)
-    const remainingMatchups = [];
-
-    futureGames.forEach(game => {
-        const homeTeam = allTeams.find(t => t.name === game.home);
-        const awayTeam = allTeams.find(t => t.name === game.visitors);
-
-        if (homeTeam && awayTeam) {
-            remainingMatchups.push({ homeTeam, awayTeam, game });
-        }
-    });
-
-    // If no games remaining, fall back to simple calculation
-    if (remainingMatchups.length === 0) {
-        // No games to simulate - return based on current position
-        if (team.rank <= playoffSpots) return 95;
-        return 5;
-    }
-
-    let playoffCount = 0;
-
-    for (let sim = 0; sim < numSimulations; sim++) {
-        // Create simulation standings with current records
-        const simStandings = allTeams.map(t => ({
-            name: t.name,
-            wins: t.wins,
-            losses: t.losses,
-            ties: t.ties,
-            winPct: t.winPct
-        }));
-
-        // Simulate each remaining game
-        remainingMatchups.forEach(matchup => {
-            const { homeTeam, awayTeam } = matchup;
-
-            // Calculate win probability using Pythagorean expectation based on runs
-            // This accounts for offensive strength vs defensive weakness
-
-            // Get runs for/against from original team data
-            const homeRF = homeTeam.runsFor || 1;
-            const homeRA = homeTeam.runsAgainst || 1;
-            const awayRF = awayTeam.runsFor || 1;
-            const awayRA = awayTeam.runsAgainst || 1;
-
-            // Pythagorean win% formula for baseball (exponent ~1.83)
-            // Expected Win% = (Runs Scored)^1.83 / ((Runs Scored)^1.83 + (Runs Allowed)^1.83)
-            const exponent = 1.83;
-            const homePythWinPct = Math.pow(homeRF, exponent) / (Math.pow(homeRF, exponent) + Math.pow(homeRA, exponent));
-            const awayPythWinPct = Math.pow(awayRF, exponent) / (Math.pow(awayRF, exponent) + Math.pow(awayRA, exponent));
-
-            // Blend actual win% with Pythagorean win% (70% Pyth, 30% actual)
-            // This accounts for both run differential AND actual results (luck, clutch, etc.)
-            const homeExpWinPct = (homePythWinPct * 0.7) + (homeTeam.winPct * 0.3);
-            const awayExpWinPct = (awayPythWinPct * 0.7) + (awayTeam.winPct * 0.3);
-
-            // Matchup-specific prediction: home offense vs away defense, away offense vs home defense
-            // Home team's scoring ability vs away team's runs allowed
-            const homeOffenseVsAwayDefense = homeRF / awayRA;
-            // Away team's scoring ability vs home team's runs allowed
-            const awayOffenseVsHomeDefense = awayRF / homeRA;
-
-            // Combined strength considering both overall ability and matchup
-            // Home gets 5% boost for home field advantage
-            const homeStrength = (homeExpWinPct * 0.6 + homeOffenseVsAwayDefense * 0.4) * 1.05;
-            const awayStrength = (awayExpWinPct * 0.6 + awayOffenseVsHomeDefense * 0.4);
-
-            // Calculate win probability
-            const homeWinProb = homeStrength / (homeStrength + awayStrength);
-
-            const rand = Math.random();
-            const simHome = simStandings.find(t => t.name === homeTeam.name);
-            const simAway = simStandings.find(t => t.name === awayTeam.name);
-
-            if (rand < homeWinProb) {
-                // Home team wins
-                simHome.wins++;
-                simAway.losses++;
-            } else {
-                // Away team wins
-                simAway.wins++;
-                simHome.losses++;
-            }
-        });
-
-        // Recalculate win percentages and sort
-        simStandings.forEach(t => {
-            const totalGames = t.wins + t.losses + t.ties;
-            t.winPct = totalGames > 0 ? (t.wins + t.ties * 0.5) / totalGames : 0;
-        });
-
-        simStandings.sort((a, b) => {
-            if (b.winPct !== a.winPct) return b.winPct - a.winPct;
-            // Tiebreaker: use current run differential (from original data)
-            const aTeam = allTeams.find(t => t.name === a.name);
-            const bTeam = allTeams.find(t => t.name === b.name);
-            return (bTeam.runDiff || 0) - (aTeam.runDiff || 0);
-        });
-
-        // Check if this team made playoffs
-        const teamFinish = simStandings.findIndex(t => t.name === team.name);
-        if (teamFinish < playoffSpots) {
-            playoffCount++;
-        }
-    }
-
-    return Math.round((playoffCount / numSimulations) * 100);
+    // Use the same Monte Carlo simulation logic
+    return runMonteCarloSimulation(team, allTeams, futureGames, season);
 }
 
 function getRemainingSchedule(team, allTeams) {
@@ -246,8 +367,19 @@ function getRemainingSchedule(team, allTeams) {
         return { games: [], difficulty: 0, difficultyLabel: 'Season Complete' };
     }
 
+    // Filter to only future games (same logic as playoff probability calculation)
+    const today = new Date();
+    const currentYear = new Date().getFullYear();
+
     const upcomingGames = season.upcomingGames || [];
-    const remainingGames = upcomingGames.filter(game =>
+    const futureGames = upcomingGames.filter(game => {
+        const gameDate = new Date(`${game.date}, ${currentYear}`);
+        const dayAfterGame = new Date(gameDate);
+        dayAfterGame.setDate(dayAfterGame.getDate() + 1);  // Add buffer for timezone
+        return dayAfterGame >= today;
+    });
+
+    const remainingGames = futureGames.filter(game =>
         game.home === team.name || game.visitors === team.name
     );
 
@@ -259,26 +391,65 @@ function getRemainingSchedule(team, allTeams) {
     const opponents = remainingGames.map(game => {
         const opponentName = game.home === team.name ? game.visitors : game.home;
         const opponent = allTeams.find(t => t.name === opponentName);
+        const isHome = game.home === team.name;
+
+        // Calculate win probability for this specific game using Pythagorean expectation
+        let winProbability = 0.500;
+        if (opponent) {
+            const teamRF = team.runsFor || 1;
+            const teamRA = team.runsAgainst || 1;
+            const oppRF = opponent.runsFor || 1;
+            const oppRA = opponent.runsAgainst || 1;
+
+            // Pythagorean win%
+            const exponent = 1.83;
+            const teamPythWinPct = Math.pow(teamRF, exponent) / (Math.pow(teamRF, exponent) + Math.pow(teamRA, exponent));
+            const oppPythWinPct = Math.pow(oppRF, exponent) / (Math.pow(oppRF, exponent) + Math.pow(oppRA, exponent));
+
+            // Blend with actual win%
+            const teamExpWinPct = (teamPythWinPct * 0.7) + (team.winPct * 0.3);
+            const oppExpWinPct = (oppPythWinPct * 0.7) + (opponent.winPct * 0.3);
+
+            // Matchup-specific
+            const teamOffenseVsOppDefense = teamRF / oppRA;
+            const oppOffenseVsTeamDefense = oppRF / teamRA;
+
+            // Calculate strengths
+            let teamStrength = teamExpWinPct * 0.6 + teamOffenseVsOppDefense * 0.4;
+            let oppStrength = oppExpWinPct * 0.6 + oppOffenseVsTeamDefense * 0.4;
+
+            // Home field advantage (5% boost)
+            if (isHome) {
+                teamStrength *= 1.05;
+            } else {
+                oppStrength *= 1.05;
+            }
+
+            winProbability = teamStrength / (teamStrength + oppStrength);
+        }
+
         return {
             name: opponentName,
             game: game,
             winPct: opponent ? opponent.winPct : 0.500,
+            winProbability: winProbability,
             rank: opponent ? opponent.rank : null
         };
     });
 
-    const avgOpponentWinPct = opponents.reduce((sum, opp) => sum + opp.winPct, 0) / opponents.length;
+    // Calculate average win probability (lower = harder schedule)
+    const avgWinProb = opponents.reduce((sum, opp) => sum + opp.winProbability, 0) / opponents.length;
 
     let difficultyLabel = '';
-    if (avgOpponentWinPct >= 0.700) difficultyLabel = 'Very Hard';
-    else if (avgOpponentWinPct >= 0.550) difficultyLabel = 'Hard';
-    else if (avgOpponentWinPct >= 0.450) difficultyLabel = 'Average';
-    else if (avgOpponentWinPct >= 0.300) difficultyLabel = 'Easy';
+    if (avgWinProb <= 0.300) difficultyLabel = 'Very Hard';
+    else if (avgWinProb <= 0.450) difficultyLabel = 'Hard';
+    else if (avgWinProb <= 0.550) difficultyLabel = 'Average';
+    else if (avgWinProb <= 0.700) difficultyLabel = 'Easy';
     else difficultyLabel = 'Very Easy';
 
     return {
         games: opponents,
-        difficulty: avgOpponentWinPct,
+        difficulty: avgWinProb,
         difficultyLabel: difficultyLabel
     };
 }
@@ -326,6 +497,69 @@ function createTeamRow(team, index) {
     return row;
 }
 
+function createPlayoffProbabilityChart(history) {
+    if (history.length === 0) return '<div class="no-data">No game history available</div>';
+
+    const width = 600;
+    const height = 200;
+    const padding = { top: 20, right: 20, bottom: 30, left: 50 };
+    const chartWidth = width - padding.left - padding.right;
+    const chartHeight = height - padding.top - padding.bottom;
+
+    // Calculate scale
+    const maxGame = history.length;
+    const xScale = (gameNum) => padding.left + (gameNum - 1) * (chartWidth / (maxGame - 1));
+    const yScale = (prob) => padding.top + chartHeight - (prob / 100) * chartHeight;
+
+    // Create SVG path for the line
+    const pathData = history.map((point, idx) =>
+        `${idx === 0 ? 'M' : 'L'} ${xScale(point.gameNumber)} ${yScale(point.probability)}`
+    ).join(' ');
+
+    // Create points for each game
+    const pointsHtml = history.map((point, idx) => {
+        const cx = xScale(point.gameNumber);
+        const cy = yScale(point.probability);
+        const colorClass = point.result === 'win' ? 'win' : point.result === 'loss' ? 'loss' : 'tie';
+
+        return `
+            <circle cx="${cx}" cy="${cy}" r="4" class="chart-point ${colorClass}"
+                    data-game="${point.gameNumber}"
+                    data-opponent="${point.opponent}"
+                    data-score="${point.score}"
+                    data-prob="${point.probability}">
+                <title>Game ${point.gameNumber}: ${point.opponent} (${point.score}) - ${point.probability}% playoff chance</title>
+            </circle>
+        `;
+    }).join('');
+
+    return `
+        <svg class="playoff-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
+            <!-- Grid lines -->
+            <line x1="${padding.left}" y1="${yScale(0)}" x2="${width - padding.right}" y2="${yScale(0)}" class="grid-line" />
+            <line x1="${padding.left}" y1="${yScale(25)}" x2="${width - padding.right}" y2="${yScale(25)}" class="grid-line" />
+            <line x1="${padding.left}" y1="${yScale(50)}" x2="${width - padding.right}" y2="${yScale(50)}" class="grid-line playoff-line" />
+            <line x1="${padding.left}" y1="${yScale(75)}" x2="${width - padding.right}" y2="${yScale(75)}" class="grid-line" />
+            <line x1="${padding.left}" y1="${yScale(100)}" x2="${width - padding.right}" y2="${yScale(100)}" class="grid-line" />
+
+            <!-- Y-axis labels -->
+            <text x="${padding.left - 10}" y="${yScale(0)}" class="axis-label" text-anchor="end" alignment-baseline="middle">0%</text>
+            <text x="${padding.left - 10}" y="${yScale(50)}" class="axis-label" text-anchor="end" alignment-baseline="middle">50%</text>
+            <text x="${padding.left - 10}" y="${yScale(100)}" class="axis-label" text-anchor="end" alignment-baseline="middle">100%</text>
+
+            <!-- X-axis labels -->
+            <text x="${padding.left}" y="${height - 10}" class="axis-label" text-anchor="middle">Game 1</text>
+            <text x="${width - padding.right}" y="${height - 10}" class="axis-label" text-anchor="middle">Game ${maxGame}</text>
+
+            <!-- The line -->
+            <path d="${pathData}" class="playoff-chart-line" fill="none" stroke="#FFC107" stroke-width="2" />
+
+            <!-- Points -->
+            ${pointsHtml}
+        </svg>
+    `;
+}
+
 function createTeamDetails(team) {
     const detailsRow = document.createElement('tr');
     detailsRow.className = 'team-details';
@@ -341,36 +575,34 @@ function createTeamDetails(team) {
         </div>
     `).join('');
 
-    const h2hRecords = getHeadToHead(team);
-    const h2hHtml = h2hRecords.map(record => `
-        <div class="h2h-item">
-            <div class="h2h-opponent">${record.opponent}</div>
-            <div class="h2h-record ${record.wins > record.losses ? 'winning' : record.losses > record.wins ? 'losing' : 'even'}">
-                ${record.wins}-${record.losses}${record.ties > 0 ? `-${record.ties}` : ''}
-            </div>
-        </div>
-    `).join('');
-
+    // Calculate playoff probability history
     const allTeams = getCurrentTeamsData();
+    const playoffHistory = calculatePlayoffProbabilityHistory(team, allTeams);
+    const chartHtml = createPlayoffProbabilityChart(playoffHistory);
+
     const remaining = getRemainingSchedule(team, allTeams);
-    const difficultyClass = remaining.difficulty >= 0.700 ? 'very-hard' :
-                           remaining.difficulty >= 0.550 ? 'hard' :
-                           remaining.difficulty >= 0.450 ? 'average' :
-                           remaining.difficulty >= 0.300 ? 'easy' : 'very-easy';
+    // Difficulty class based on average win probability (lower = harder)
+    const difficultyClass = remaining.difficulty <= 0.300 ? 'very-hard' :
+                           remaining.difficulty <= 0.450 ? 'hard' :
+                           remaining.difficulty <= 0.550 ? 'average' :
+                           remaining.difficulty <= 0.700 ? 'easy' : 'very-easy';
 
     const remainingHtml = remaining.games.length > 0 ? remaining.games.map(opp => {
         const location = opp.game.home === team.name ? 'vs' : '@';
-        const oppDiffClass = opp.winPct >= 0.700 ? 'very-hard' :
-                            opp.winPct >= 0.550 ? 'hard' :
-                            opp.winPct >= 0.450 ? 'average' :
-                            opp.winPct >= 0.300 ? 'easy' : 'very-easy';
+        const winProb = opp.winProbability;
+
+        // Difficulty class based on team's win probability (low % = hard, high % = easy)
+        const oppDiffClass = winProb <= 0.300 ? 'very-hard' :
+                            winProb <= 0.450 ? 'hard' :
+                            winProb <= 0.550 ? 'average' :
+                            winProb <= 0.700 ? 'easy' : 'very-easy';
         return `
             <div class="remaining-game-item ${oppDiffClass}">
                 <div class="remaining-game-info">
                     <div class="remaining-opponent">${location} ${opp.name}</div>
                     <div class="remaining-date">${opp.game.day}, ${opp.game.date} • ${opp.game.time}</div>
                 </div>
-                <div class="opponent-record">${opp.rank ? `#${opp.rank}` : ''} (${(opp.winPct * 100).toFixed(0)}%)</div>
+                <div class="opponent-record">${opp.rank ? `#${opp.rank}` : ''} (${(winProb * 100).toFixed(0)}% win)</div>
             </div>
         `;
     }).join('') : `<div class="no-games">${remaining.difficultyLabel}</div>`;
@@ -390,21 +622,21 @@ function createTeamDetails(team) {
                     </div>
                     <div class="details-section">
                         <div class="games-header">
-                            <span>🆚</span>
-                            Head-to-Head Records
-                        </div>
-                        <div class="h2h-list">
-                            ${h2hHtml}
-                        </div>
-                    </div>
-                    <div class="details-section full-width">
-                        <div class="games-header">
                             <span>📅</span>
                             Remaining Schedule
                             ${remaining.games.length > 0 ? `<span class="difficulty-badge ${difficultyClass}">${remaining.difficultyLabel}</span>` : ''}
                         </div>
                         <div class="remaining-games-list">
                             ${remainingHtml}
+                        </div>
+                    </div>
+                    <div class="details-section full-width">
+                        <div class="games-header">
+                            <span>📈</span>
+                            Playoff Probability Over Season
+                        </div>
+                        <div class="chart-container">
+                            ${chartHtml}
                         </div>
                     </div>
                 </div>
@@ -812,6 +1044,44 @@ function createUpcomingGameCard(game) {
     const card = document.createElement('div');
     card.className = 'upcoming-game-card';
 
+    // Calculate win probabilities for this matchup
+    const allTeams = getCurrentTeamsData();
+    const homeTeam = allTeams.find(t => t.name === game.home);
+    const awayTeam = allTeams.find(t => t.name === game.visitors);
+
+    let homeWinProb = 0.5;
+    let awayWinProb = 0.5;
+
+    if (homeTeam && awayTeam) {
+        const homeRF = homeTeam.runsFor || 1;
+        const homeRA = homeTeam.runsAgainst || 1;
+        const awayRF = awayTeam.runsFor || 1;
+        const awayRA = awayTeam.runsAgainst || 1;
+
+        // Pythagorean win%
+        const exponent = 1.83;
+        const homePythWinPct = Math.pow(homeRF, exponent) / (Math.pow(homeRF, exponent) + Math.pow(homeRA, exponent));
+        const awayPythWinPct = Math.pow(awayRF, exponent) / (Math.pow(awayRF, exponent) + Math.pow(awayRA, exponent));
+
+        // Blend with actual win%
+        const homeExpWinPct = (homePythWinPct * 0.7) + (homeTeam.winPct * 0.3);
+        const awayExpWinPct = (awayPythWinPct * 0.7) + (awayTeam.winPct * 0.3);
+
+        // Matchup-specific
+        const homeOffenseVsAwayDefense = homeRF / awayRA;
+        const awayOffenseVsHomeDefense = awayRF / homeRA;
+
+        // Home field advantage
+        const homeStrength = (homeExpWinPct * 0.6 + homeOffenseVsAwayDefense * 0.4) * 1.05;
+        const awayStrength = (awayExpWinPct * 0.6 + awayOffenseVsHomeDefense * 0.4);
+
+        homeWinProb = homeStrength / (homeStrength + awayStrength);
+        awayWinProb = 1 - homeWinProb;
+    }
+
+    const homeWinPct = Math.round(homeWinProb * 100);
+    const awayWinPct = Math.round(awayWinProb * 100);
+
     card.innerHTML = `
         <div class="game-time-header">
             <span class="time-icon">🕐</span>
@@ -825,6 +1095,20 @@ function createUpcomingGameCard(game) {
             <div class="game-team">
                 <div class="team-name-upcoming">${game.home}</div>
                 <div class="team-label">Home</div>
+            </div>
+        </div>
+        <div class="win-probability-container">
+            <div class="win-prob-labels">
+                <span class="win-prob-label visitor-label">VISITOR</span>
+                <span class="win-prob-label home-label">HOME</span>
+            </div>
+            <div class="win-probability-bar">
+                <div class="win-prob-section away" style="width: ${awayWinPct}%">
+                    <span class="win-prob-text">${awayWinPct}%</span>
+                </div>
+                <div class="win-prob-section home" style="width: ${homeWinPct}%">
+                    <span class="win-prob-text">${homeWinPct}%</span>
+                </div>
             </div>
         </div>
         <div class="game-venue-display">${game.venue}</div>
