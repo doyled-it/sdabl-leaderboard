@@ -170,11 +170,25 @@ function formatDate(dateStr) {
 
 /**
  * Process games and group by team with statistics
+ * @param {Array} games - All games (completed and upcoming)
+ * @param {number} regularSeasonGames - Number of games in regular season
  */
-function processGames(games) {
+function processGames(games, regularSeasonGames = 10) {
     // Separate completed and upcoming games
     const completedGames = games.filter(g => g.status === 'completed');
     const upcomingGames = games.filter(g => g.status === 'upcoming');
+
+    // Sort completed games by date to determine regular season vs playoffs
+    const months = { 'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+                     'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11 };
+
+    completedGames.sort((a, b) => {
+        const [monthA, dayA] = a.date.split(' ');
+        const [monthB, dayB] = b.date.split(' ');
+        const dateA = new Date(2025, months[monthA], parseInt(dayA));
+        const dateB = new Date(2025, months[monthB], parseInt(dayB));
+        return dateA - dateB;
+    });
 
     const teams = {};
 
@@ -188,7 +202,8 @@ function processGames(games) {
                 ties: 0,
                 runsFor: 0,
                 runsAgainst: 0,
-                games: []
+                games: [],
+                playoffGames: []
             };
         }
         if (!teams[game.home]) {
@@ -199,7 +214,8 @@ function processGames(games) {
                 ties: 0,
                 runsFor: 0,
                 runsAgainst: 0,
-                games: []
+                games: [],
+                playoffGames: []
             };
         }
     }
@@ -208,42 +224,79 @@ function processGames(games) {
     for (const game of completedGames) {
         const [visitorScore, homeScore] = game.score.split('-').map(Number);
 
-        // Add game to visitors' record
+        // Determine result
         let visitorResult, homeResult;
         if (visitorScore > homeScore) {
             visitorResult = 'win';
             homeResult = 'loss';
-            teams[game.visitors].wins++;
-            teams[game.home].losses++;
         } else if (homeScore > visitorScore) {
             visitorResult = 'loss';
             homeResult = 'win';
-            teams[game.visitors].losses++;
-            teams[game.home].wins++;
         } else {
             visitorResult = 'tie';
             homeResult = 'tie';
-            teams[game.visitors].ties++;
-            teams[game.home].ties++;
         }
 
-        teams[game.visitors].runsFor += visitorScore;
-        teams[game.visitors].runsAgainst += homeScore;
-        teams[game.visitors].games.push({
-            opponent: `@ ${game.home}`,
-            score: game.score,
-            result: visitorResult,
-            date: game.date
-        });
+        // Check if this is a regular season game or playoff game for each team
+        const visitorRegularSeasonGames = teams[game.visitors].games.length;
+        const homeRegularSeasonGames = teams[game.home].games.length;
 
-        teams[game.home].runsFor += homeScore;
-        teams[game.home].runsAgainst += visitorScore;
-        teams[game.home].games.push({
-            opponent: `vs ${game.visitors}`,
-            score: `${homeScore}-${visitorScore}`,
-            result: homeResult,
-            date: game.date
-        });
+        const visitorIsRegularSeason = visitorRegularSeasonGames < regularSeasonGames;
+        const homeIsRegularSeason = homeRegularSeasonGames < regularSeasonGames;
+
+        // Add to visitor's record
+        if (visitorIsRegularSeason) {
+            // Regular season game for visitor
+            if (visitorResult === 'win') teams[game.visitors].wins++;
+            else if (visitorResult === 'loss') teams[game.visitors].losses++;
+            else teams[game.visitors].ties++;
+
+            teams[game.visitors].runsFor += visitorScore;
+            teams[game.visitors].runsAgainst += homeScore;
+
+            teams[game.visitors].games.push({
+                opponent: `@ ${game.home}`,
+                score: game.score,
+                result: visitorResult,
+                date: game.date
+            });
+        } else {
+            // Playoff game for visitor
+            teams[game.visitors].playoffGames.push({
+                opponent: `@ ${game.home}`,
+                score: game.score,
+                result: visitorResult,
+                date: game.date,
+                round: 'Playoff'
+            });
+        }
+
+        // Add to home's record
+        if (homeIsRegularSeason) {
+            // Regular season game for home
+            if (homeResult === 'win') teams[game.home].wins++;
+            else if (homeResult === 'loss') teams[game.home].losses++;
+            else teams[game.home].ties++;
+
+            teams[game.home].runsFor += homeScore;
+            teams[game.home].runsAgainst += visitorScore;
+
+            teams[game.home].games.push({
+                opponent: `vs ${game.visitors}`,
+                score: `${homeScore}-${visitorScore}`,
+                result: homeResult,
+                date: game.date
+            });
+        } else {
+            // Playoff game for home
+            teams[game.home].playoffGames.push({
+                opponent: `vs ${game.visitors}`,
+                score: `${homeScore}-${visitorScore}`,
+                result: homeResult,
+                date: game.date,
+                round: 'Playoff'
+            });
+        }
     }
 
     // Calculate stats and rank
@@ -252,7 +305,7 @@ function processGames(games) {
         const winPct = totalGames > 0 ? ((team.wins + team.ties * 0.5) / totalGames) : 0;
         const runDiff = team.runsFor - team.runsAgainst;
 
-        return {
+        const teamObj = {
             name: team.name,
             wins: team.wins,
             losses: team.losses,
@@ -263,6 +316,13 @@ function processGames(games) {
             runsAgainst: team.runsAgainst,
             games: team.games
         };
+
+        // Add playoff games if they exist
+        if (team.playoffGames && team.playoffGames.length > 0) {
+            teamObj.playoffGames = team.playoffGames;
+        }
+
+        return teamObj;
     });
 
     // Sort by win percentage (descending), then by run differential (descending)
@@ -312,7 +372,24 @@ function generateTeamsArray(teams, indent = '                ') {
             output += '\n';
         });
 
-        output += indent + '    ]\n';
+        output += indent + '    ]';
+
+        // Add playoff games if they exist
+        if (team.playoffGames && team.playoffGames.length > 0) {
+            output += ',\n';
+            output += indent + '    playoffGames: [\n';
+
+            team.playoffGames.forEach((game, gIndex) => {
+                output += indent + `        { opponent: "${game.opponent}", score: "${game.score}", result: "${game.result}", date: "${game.date}", round: "${game.round}" }`;
+                if (gIndex < team.playoffGames.length - 1) output += ',';
+                output += '\n';
+            });
+
+            output += indent + '    ]\n';
+        } else {
+            output += '\n';
+        }
+
         output += indent + '}';
         if (index < teams.length - 1) output += ',';
         output += '\n';
@@ -405,8 +482,14 @@ async function scrape(seasonId = null) {
     const targetSeasonId = seasonId || (seasonsData ? seasonsData.currentSeason : 'fall2025');
     const url = getSeasonUrl(targetSeasonId);
 
+    // Get regularSeasonGames from season config
+    const regularSeasonGames = (seasonsData && seasonsData.seasons[targetSeasonId])
+        ? (seasonsData.seasons[targetSeasonId].regularSeasonGames || 10)
+        : 10;
+
     console.log(`Fetching schedule for season: ${targetSeasonId}`);
     console.log('URL:', url);
+    console.log(`Regular season games: ${regularSeasonGames}`);
 
     try {
         const html = await fetchHTML(url);
@@ -415,7 +498,7 @@ async function scrape(seasonId = null) {
         const games = parseScheduleTable(html);
         console.log(`✓ Parsed ${games.length} total games`);
 
-        const result = processGames(games);
+        const result = processGames(games, regularSeasonGames);
         const { teams, upcomingGames } = result;
         console.log(`✓ Processed ${teams.length} teams`);
         console.log(`✓ Found ${upcomingGames.length} upcoming games`);

@@ -299,6 +299,21 @@ body {
     border-left-color: #FFA500;
 }
 
+.game-item.playoff-game {
+    background: linear-gradient(90deg, rgba(255,193,7,0.1), rgba(255,152,0,0.05));
+    border: 1px solid rgba(255,193,7,0.3);
+    border-left-width: 3px;
+}
+
+.game-item.playoff-game:hover {
+    background: linear-gradient(90deg, rgba(255,193,7,0.15), rgba(255,152,0,0.1));
+    box-shadow: 0 2px 8px rgba(255,193,7,0.2);
+}
+
+.playoff-header {
+    color: #FFC107;
+}
+
 .game-info {
     display: flex;
     flex-direction: column;

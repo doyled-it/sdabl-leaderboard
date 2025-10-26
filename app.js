@@ -11,8 +11,14 @@ function getCurrentSeason() {
 
 function hasClinchedPlayoff(team, allTeams) {
     const season = getCurrentSeason();
-    const totalSeasonGames = season.regularSeasonGames || 10;
     const playoffSpots = 6;
+
+    // For completed seasons, top 6 teams automatically clinched
+    if (season.status === 'completed') {
+        return team.rank <= playoffSpots;
+    }
+
+    const totalSeasonGames = season.regularSeasonGames || 10;
 
     // Calculate games remaining for this team
     const teamGamesPlayed = team.wins + team.losses + team.ties;
@@ -139,20 +145,12 @@ function runMonteCarloSimulation(targetTeam, allTeams, upcomingGames, season) {
             const homePythWinPct = Math.pow(homeRF, exponent) / (Math.pow(homeRF, exponent) + Math.pow(homeRA, exponent));
             const awayPythWinPct = Math.pow(awayRF, exponent) / (Math.pow(awayRF, exponent) + Math.pow(awayRA, exponent));
 
-            // Blend actual win% with Pythagorean win% (70% Pyth, 30% actual)
+            // Blend Pythagorean win% with actual win% (70% Pyth, 30% actual)
             const homeExpWinPct = (homePythWinPct * 0.7) + (homeTeam.winPct * 0.3);
             const awayExpWinPct = (awayPythWinPct * 0.7) + (awayTeam.winPct * 0.3);
 
-            // Matchup-specific prediction
-            const homeOffenseVsAwayDefense = homeRF / awayRA;
-            const awayOffenseVsHomeDefense = awayRF / homeRA;
-
-            // Combined strength - home gets 5% boost
-            const homeStrength = (homeExpWinPct * 0.6 + homeOffenseVsAwayDefense * 0.4) * 1.05;
-            const awayStrength = (awayExpWinPct * 0.6 + awayOffenseVsHomeDefense * 0.4);
-
-            // Calculate win probability
-            const homeWinProb = homeStrength / (homeStrength + awayStrength);
+            // Calculate win probability (no home field advantage for recreational league)
+            const homeWinProb = homeExpWinPct / (homeExpWinPct + awayExpWinPct);
 
             const rand = Math.random();
             const simHome = simStandings.find(t => t.name === homeTeam.name);
@@ -406,26 +404,12 @@ function getRemainingSchedule(team, allTeams) {
             const teamPythWinPct = Math.pow(teamRF, exponent) / (Math.pow(teamRF, exponent) + Math.pow(teamRA, exponent));
             const oppPythWinPct = Math.pow(oppRF, exponent) / (Math.pow(oppRF, exponent) + Math.pow(oppRA, exponent));
 
-            // Blend with actual win%
+            // Blend Pythagorean win% with actual win% (70% Pyth, 30% actual)
             const teamExpWinPct = (teamPythWinPct * 0.7) + (team.winPct * 0.3);
             const oppExpWinPct = (oppPythWinPct * 0.7) + (opponent.winPct * 0.3);
 
-            // Matchup-specific
-            const teamOffenseVsOppDefense = teamRF / oppRA;
-            const oppOffenseVsTeamDefense = oppRF / teamRA;
-
-            // Calculate strengths
-            let teamStrength = teamExpWinPct * 0.6 + teamOffenseVsOppDefense * 0.4;
-            let oppStrength = oppExpWinPct * 0.6 + oppOffenseVsTeamDefense * 0.4;
-
-            // Home field advantage (5% boost)
-            if (isHome) {
-                teamStrength *= 1.05;
-            } else {
-                oppStrength *= 1.05;
-            }
-
-            winProbability = teamStrength / (teamStrength + oppStrength);
+            // Calculate win probability (no home field advantage for recreational league)
+            winProbability = teamExpWinPct / (teamExpWinPct + oppExpWinPct);
         }
 
         return {
@@ -441,10 +425,10 @@ function getRemainingSchedule(team, allTeams) {
     const avgWinProb = opponents.reduce((sum, opp) => sum + opp.winProbability, 0) / opponents.length;
 
     let difficultyLabel = '';
-    if (avgWinProb <= 0.300) difficultyLabel = 'Very Hard';
-    else if (avgWinProb <= 0.450) difficultyLabel = 'Hard';
-    else if (avgWinProb <= 0.550) difficultyLabel = 'Average';
-    else if (avgWinProb <= 0.700) difficultyLabel = 'Easy';
+    if (avgWinProb <= 0.350) difficultyLabel = 'Very Hard';
+    else if (avgWinProb <= 0.500) difficultyLabel = 'Hard';
+    else if (avgWinProb <= 0.650) difficultyLabel = 'Average';
+    else if (avgWinProb <= 0.800) difficultyLabel = 'Easy';
     else difficultyLabel = 'Very Easy';
 
     return {
@@ -575,6 +559,17 @@ function createTeamDetails(team) {
         </div>
     `).join('');
 
+    // Playoff games section
+    const playoffGamesHtml = (team.playoffGames && team.playoffGames.length > 0) ? team.playoffGames.map(game => `
+        <div class="game-item ${game.result} playoff-game">
+            <div class="game-info">
+                <div class="game-matchup">${game.opponent}</div>
+                <div class="game-date">${game.date} • ${game.round}</div>
+            </div>
+            <div class="game-score ${game.result}">${game.score}</div>
+        </div>
+    `).join('') : '';
+
     // Calculate playoff probability history
     const allTeams = getCurrentTeamsData();
     const playoffHistory = calculatePlayoffProbabilityHistory(team, allTeams);
@@ -582,10 +577,10 @@ function createTeamDetails(team) {
 
     const remaining = getRemainingSchedule(team, allTeams);
     // Difficulty class based on average win probability (lower = harder)
-    const difficultyClass = remaining.difficulty <= 0.300 ? 'very-hard' :
-                           remaining.difficulty <= 0.450 ? 'hard' :
-                           remaining.difficulty <= 0.550 ? 'average' :
-                           remaining.difficulty <= 0.700 ? 'easy' : 'very-easy';
+    const difficultyClass = remaining.difficulty <= 0.350 ? 'very-hard' :
+                           remaining.difficulty <= 0.500 ? 'hard' :
+                           remaining.difficulty <= 0.650 ? 'average' :
+                           remaining.difficulty <= 0.800 ? 'easy' : 'very-easy';
 
     const remainingHtml = remaining.games.length > 0 ? remaining.games.map(opp => {
         const location = opp.game.home === team.name ? 'vs' : '@';
@@ -614,12 +609,23 @@ function createTeamDetails(team) {
                     <div class="details-section">
                         <div class="games-header">
                             <span>📊</span>
-                            Game Results (${team.wins}-${team.losses}${team.ties > 0 ? `-${team.ties}` : ''})
+                            Regular Season (${team.wins}-${team.losses}${team.ties > 0 ? `-${team.ties}` : ''})
                         </div>
                         <div class="games-list">
                             ${gamesHtml}
                         </div>
                     </div>
+                    ${playoffGamesHtml ? `
+                    <div class="details-section">
+                        <div class="games-header playoff-header">
+                            <span>🏆</span>
+                            Playoffs
+                        </div>
+                        <div class="games-list">
+                            ${playoffGamesHtml}
+                        </div>
+                    </div>
+                    ` : `
                     <div class="details-section">
                         <div class="games-header">
                             <span>📅</span>
@@ -630,6 +636,7 @@ function createTeamDetails(team) {
                             ${remainingHtml}
                         </div>
                     </div>
+                    `}
                     <div class="details-section full-width">
                         <div class="games-header">
                             <span>📈</span>
@@ -701,6 +708,86 @@ function updateSeasonProgress() {
     progressStats.textContent = `${maxGamesPlayed} / ${totalSeasonGames} Games`;
 }
 
+function buildPlayoffResults(teamsData) {
+    // Build playoff results from playoffGames data
+    const playoffs = {};
+    const playoffTeams = teamsData.slice(0, 6);
+
+    // Helper to find a playoff game for a team against a specific opponent
+    const findPlayoffGame = (team, opponentName, round) => {
+        if (!team.playoffGames) return null;
+        return team.playoffGames.find(g =>
+            g.opponent.includes(opponentName) &&
+            (!round || (round === 'QF' && g.date.includes('Jul 13')) ||
+                      (round === 'SF' && g.date.includes('Jul 20')) ||
+                      (round === 'Championship' && g.date.includes('Jul 27')))
+        );
+    };
+
+    // QF1: #3 vs #6
+    const qf1_team3Game = findPlayoffGame(playoffTeams[2], playoffTeams[5].name, 'QF');
+    if (qf1_team3Game) {
+        const [score1, score2] = qf1_team3Game.score.split('-').map(Number);
+        playoffs.qf1 = {
+            winner: qf1_team3Game.result === 'win' ? playoffTeams[2] : playoffTeams[5],
+            score1,
+            score2
+        };
+    }
+
+    // QF2: #4 vs #5
+    const qf2_team4Game = findPlayoffGame(playoffTeams[3], playoffTeams[4].name, 'QF');
+    if (qf2_team4Game) {
+        const [score1, score2] = qf2_team4Game.score.split('-').map(Number);
+        playoffs.qf2 = {
+            winner: qf2_team4Game.result === 'win' ? playoffTeams[3] : playoffTeams[4],
+            score1,
+            score2
+        };
+    }
+
+    // SF1: #1 vs QF2 winner
+    if (playoffs.qf2) {
+        const sf1_team1Game = findPlayoffGame(playoffTeams[0], playoffs.qf2.winner.name, 'SF');
+        if (sf1_team1Game) {
+            const [score1, score2] = sf1_team1Game.score.split('-').map(Number);
+            playoffs.sf1 = {
+                winner: sf1_team1Game.result === 'win' ? playoffTeams[0] : playoffs.qf2.winner,
+                score1,
+                score2
+            };
+        }
+    }
+
+    // SF2: #2 vs QF1 winner
+    if (playoffs.qf1) {
+        const sf2_team2Game = findPlayoffGame(playoffTeams[1], playoffs.qf1.winner.name, 'SF');
+        if (sf2_team2Game) {
+            const [score1, score2] = sf2_team2Game.score.split('-').map(Number);
+            playoffs.sf2 = {
+                winner: sf2_team2Game.result === 'win' ? playoffTeams[1] : playoffs.qf1.winner,
+                score1,
+                score2
+            };
+        }
+    }
+
+    // Championship: SF1 winner vs SF2 winner
+    if (playoffs.sf1 && playoffs.sf2) {
+        const champSF1Game = findPlayoffGame(playoffs.sf1.winner, playoffs.sf2.winner.name, 'Championship');
+        if (champSF1Game) {
+            const [score1, score2] = champSF1Game.score.split('-').map(Number);
+            playoffs.championship = {
+                winner: champSF1Game.result === 'win' ? playoffs.sf1.winner : playoffs.sf2.winner,
+                score1,
+                score2
+            };
+        }
+    }
+
+    return playoffs;
+}
+
 function populatePlayoffBracket() {
     const season = getCurrentSeason();
     const bracketContainer = document.getElementById('playoffBracketContainer');
@@ -717,8 +804,8 @@ function populatePlayoffBracket() {
     const teamsData = getCurrentTeamsData();
     const playoffTeams = teamsData.slice(0, 6); // Top 6 teams
 
-    // Get playoff data if it exists (for future seasons with completed playoffs)
-    const playoffs = season.playoffs || {};
+    // Get playoff data - build from playoffGames if available, otherwise use manual playoffs object
+    const playoffs = season.playoffs || buildPlayoffResults(teamsData);
 
     bracket.innerHTML = `
         <div class="bracket-column">
@@ -776,34 +863,26 @@ function createMatchupHTML(team1, team2, result) {
     const team1Score = result?.score1 || '';
     const team2Score = result?.score2 || '';
 
-    // Check if teams have clinched playoffs
-    const allTeams = getCurrentTeamsData();
-    const team1Clinched = team1.rank && hasClinchedPlayoff(team1, allTeams) ? ' <span class="bracket-clinched">✓</span>' : '';
-    const team2Clinched = team2.rank && hasClinchedPlayoff(team2, allTeams) ? ' <span class="bracket-clinched">✓</span>' : '';
-
     return `
         <div class="matchup-team ${team1Class}">
             <span class="team-seed">${team1Seed}</span>
-            <span class="team-name-bracket">${team1Name}${team1Clinched}</span>
+            <span class="team-name-bracket">${team1Name}</span>
             ${team1Score ? `<span class="team-score">${team1Score}</span>` : ''}
         </div>
         <div class="matchup-team ${team2Class}">
             <span class="team-seed">${team2Seed}</span>
-            <span class="team-name-bracket">${team2Name}${team2Clinched}</span>
+            <span class="team-name-bracket">${team2Name}</span>
             ${team2Score ? `<span class="team-score">${team2Score}</span>` : ''}
         </div>
     `;
 }
 
 function createByeHTML(team) {
-    const allTeams = getCurrentTeamsData();
-    const clinched = hasClinchedPlayoff(team, allTeams) ? ' <span class="bracket-clinched">✓</span>' : '';
-
     return `
         <div class="bye-label">
             <div class="bye-team-info">
                 <span class="team-seed">${team.rank}</span>
-                <span>${team.name}${clinched}</span>
+                <span>${team.name}</span>
             </div>
             <div class="bye-text">First Round BYE</div>
         </div>
@@ -1063,19 +1142,12 @@ function createUpcomingGameCard(game) {
         const homePythWinPct = Math.pow(homeRF, exponent) / (Math.pow(homeRF, exponent) + Math.pow(homeRA, exponent));
         const awayPythWinPct = Math.pow(awayRF, exponent) / (Math.pow(awayRF, exponent) + Math.pow(awayRA, exponent));
 
-        // Blend with actual win%
+        // Blend Pythagorean win% with actual win% (70% Pyth, 30% actual)
         const homeExpWinPct = (homePythWinPct * 0.7) + (homeTeam.winPct * 0.3);
         const awayExpWinPct = (awayPythWinPct * 0.7) + (awayTeam.winPct * 0.3);
 
-        // Matchup-specific
-        const homeOffenseVsAwayDefense = homeRF / awayRA;
-        const awayOffenseVsHomeDefense = awayRF / homeRA;
-
-        // Home field advantage
-        const homeStrength = (homeExpWinPct * 0.6 + homeOffenseVsAwayDefense * 0.4) * 1.05;
-        const awayStrength = (awayExpWinPct * 0.6 + awayOffenseVsHomeDefense * 0.4);
-
-        homeWinProb = homeStrength / (homeStrength + awayStrength);
+        // Calculate win probability (no home field advantage for recreational league)
+        homeWinProb = homeExpWinPct / (homeExpWinPct + awayExpWinPct);
         awayWinProb = 1 - homeWinProb;
     }
 
