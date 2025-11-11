@@ -420,6 +420,22 @@ const seasonsData = {
                 }
             ],
             upcomingGames: [
+                {
+                    date: "Nov 16",
+                    day: "Sun",
+                    time: "9:00 am",
+                    visitors: "Happy Sox",
+                    home: "SD Rip City",
+                    venue: "Presidio Field"
+                },
+                {
+                    date: "Nov 16",
+                    day: "Sun",
+                    time: "1:00 pm",
+                    visitors: "San Diego Banditos",
+                    home: "Beavers",
+                    venue: "Presidio Field"
+                }
             ]
         },
 
