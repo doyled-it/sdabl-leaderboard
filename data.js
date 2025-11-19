@@ -421,7 +421,7 @@ const seasonsData = {
             ],
             upcomingGames: [
                 {
-                    date: "Nov 16",
+                    date: "Nov 23",
                     day: "Sun",
                     time: "9:00 am",
                     visitors: "Happy Sox",
@@ -429,7 +429,7 @@ const seasonsData = {
                     venue: "Presidio Field"
                 },
                 {
-                    date: "Nov 16",
+                    date: "Nov 23",
                     day: "Sun",
                     time: "1:00 pm",
                     visitors: "San Diego Banditos",
