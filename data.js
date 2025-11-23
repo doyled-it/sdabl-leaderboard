@@ -426,7 +426,7 @@ const seasonsData = {
                     time: "9:00 am",
                     visitors: "Happy Sox",
                     home: "SD Rip City",
-                    venue: "Presidio Field"
+                    venue: "Chollas"
                 },
                 {
                     date: "Nov 23",
@@ -434,7 +434,7 @@ const seasonsData = {
                     time: "1:00 pm",
                     visitors: "San Diego Banditos",
                     home: "Beavers",
-                    venue: "Presidio Field"
+                    venue: "Chollas"
                 }
             ]
         },
