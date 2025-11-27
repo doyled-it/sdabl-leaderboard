@@ -311,6 +311,9 @@ const seasonsData = {
                         { opponent: "@ San Diego Banditos", score: "9-7", result: "win", date: "Nov 2" },
                         { opponent: "@ Heroes", score: "17-18", result: "loss", date: "Nov 2" },
                         { opponent: "@ Fighting Friars", score: "21-2", result: "win", date: "Nov 9" }
+                    ],
+                    playoffGames: [
+                        { opponent: "vs Happy Sox", score: "11-5", result: "win", date: "Nov 23", round: "Playoff" }
                     ]
                 },
                 {
@@ -326,6 +329,9 @@ const seasonsData = {
                         { opponent: "vs Heroes", score: "17-16", result: "win", date: "Oct 19" },
                         { opponent: "@ San Diego Banditos", score: "4-7", result: "loss", date: "Nov 2" },
                         { opponent: "@ Diamond Dogs", score: "21-2", result: "win", date: "Nov 9" }
+                    ],
+                    playoffGames: [
+                        { opponent: "vs San Diego Banditos", score: "14-9", result: "win", date: "Nov 23", round: "Playoff" }
                     ]
                 },
                 {
@@ -341,6 +347,9 @@ const seasonsData = {
                         { opponent: "vs SD Rip City", score: "7-9", result: "loss", date: "Nov 2" },
                         { opponent: "vs Beavers", score: "7-4", result: "win", date: "Nov 2" },
                         { opponent: "@ Happy Sox", score: "8-7", result: "win", date: "Nov 9" }
+                    ],
+                    playoffGames: [
+                        { opponent: "@ Beavers", score: "9-14", result: "loss", date: "Nov 23", round: "Playoff" }
                     ]
                 },
                 {
@@ -356,6 +365,9 @@ const seasonsData = {
                         { opponent: "vs Fighting Friars", score: "11-9", result: "win", date: "Oct 19" },
                         { opponent: "vs Reapers Baseball Club", score: "14-7", result: "win", date: "Nov 2" },
                         { opponent: "vs San Diego Banditos", score: "7-8", result: "loss", date: "Nov 9" }
+                    ],
+                    playoffGames: [
+                        { opponent: "@ SD Rip City", score: "5-11", result: "loss", date: "Nov 23", round: "Playoff" }
                     ]
                 },
                 {
@@ -420,22 +432,6 @@ const seasonsData = {
                 }
             ],
             upcomingGames: [
-                {
-                    date: "Nov 23",
-                    day: "Sun",
-                    time: "9:00 am",
-                    visitors: "Happy Sox",
-                    home: "SD Rip City",
-                    venue: "Chollas"
-                },
-                {
-                    date: "Nov 23",
-                    day: "Sun",
-                    time: "1:00 pm",
-                    visitors: "San Diego Banditos",
-                    home: "Beavers",
-                    venue: "Chollas"
-                }
             ]
         },
 
