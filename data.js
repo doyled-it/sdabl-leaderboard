@@ -432,6 +432,22 @@ const seasonsData = {
                 }
             ],
             upcomingGames: [
+                {
+                    date: "Dec 7",
+                    day: "Sun",
+                    time: "8:30 am",
+                    visitors: "SD Rip City",
+                    home: "Heroes",
+                    venue: "Hilton Head"
+                },
+                {
+                    date: "Dec 7",
+                    day: "Sun",
+                    time: "12:30 pm",
+                    visitors: "Beavers",
+                    home: "Lemon Grove Athletics",
+                    venue: "Hilton Head"
+                }
             ]
         },
 
