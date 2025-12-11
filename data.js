@@ -281,6 +281,9 @@ const seasonsData = {
                         { opponent: "@ Beavers", score: "16-17", result: "loss", date: "Oct 19" },
                         { opponent: "vs SD Rip City", score: "18-17", result: "win", date: "Nov 2" },
                         { opponent: "@ SD Storm", score: "23-1", result: "win", date: "Nov 9" }
+                    ],
+                    playoffGames: [
+                        { opponent: "vs SD Rip City", score: "5-6", result: "loss", date: "Dec 7", round: "Playoff" }
                     ]
                 },
                 {
@@ -296,6 +299,9 @@ const seasonsData = {
                         { opponent: "@ Beavers", score: "9-8", result: "win", date: "Oct 19" },
                         { opponent: "vs Fighting Friars", score: "25-9", result: "win", date: "Nov 2" },
                         { opponent: "@ Reapers Baseball Club", score: "11-10", result: "win", date: "Nov 9" }
+                    ],
+                    playoffGames: [
+                        { opponent: "vs Beavers", score: "6-4", result: "win", date: "Dec 7", round: "Playoff" }
                     ]
                 },
                 {
@@ -313,7 +319,8 @@ const seasonsData = {
                         { opponent: "@ Fighting Friars", score: "21-2", result: "win", date: "Nov 9" }
                     ],
                     playoffGames: [
-                        { opponent: "vs Happy Sox", score: "11-5", result: "win", date: "Nov 23", round: "Playoff" }
+                        { opponent: "vs Happy Sox", score: "11-5", result: "win", date: "Nov 23", round: "Playoff" },
+                        { opponent: "@ Heroes", score: "6-5", result: "win", date: "Dec 7", round: "Playoff" }
                     ]
                 },
                 {
@@ -331,7 +338,8 @@ const seasonsData = {
                         { opponent: "@ Diamond Dogs", score: "21-2", result: "win", date: "Nov 9" }
                     ],
                     playoffGames: [
-                        { opponent: "vs San Diego Banditos", score: "14-9", result: "win", date: "Nov 23", round: "Playoff" }
+                        { opponent: "vs San Diego Banditos", score: "14-9", result: "win", date: "Nov 23", round: "Playoff" },
+                        { opponent: "@ Lemon Grove Athletics", score: "4-6", result: "loss", date: "Dec 7", round: "Playoff" }
                     ]
                 },
                 {
@@ -433,20 +441,12 @@ const seasonsData = {
             ],
             upcomingGames: [
                 {
-                    date: "Dec 7",
+                    date: "Dec 14",
                     day: "Sun",
                     time: "8:30 am",
                     visitors: "SD Rip City",
-                    home: "Heroes",
-                    venue: "Hilton Head"
-                },
-                {
-                    date: "Dec 7",
-                    day: "Sun",
-                    time: "12:30 pm",
-                    visitors: "Beavers",
                     home: "Lemon Grove Athletics",
-                    venue: "Hilton Head"
+                    venue: "Monte Vista"
                 }
             ]
         },
