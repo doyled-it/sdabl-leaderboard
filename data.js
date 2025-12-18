@@ -301,7 +301,8 @@ const seasonsData = {
                         { opponent: "@ Reapers Baseball Club", score: "11-10", result: "win", date: "Nov 9" }
                     ],
                     playoffGames: [
-                        { opponent: "vs Beavers", score: "6-4", result: "win", date: "Dec 7", round: "Playoff" }
+                        { opponent: "vs Beavers", score: "6-4", result: "win", date: "Dec 7", round: "Playoff" },
+                        { opponent: "vs SD Rip City", score: "6-15", result: "loss", date: "Dec 14", round: "Playoff" }
                     ]
                 },
                 {
@@ -320,7 +321,8 @@ const seasonsData = {
                     ],
                     playoffGames: [
                         { opponent: "vs Happy Sox", score: "11-5", result: "win", date: "Nov 23", round: "Playoff" },
-                        { opponent: "@ Heroes", score: "6-5", result: "win", date: "Dec 7", round: "Playoff" }
+                        { opponent: "@ Heroes", score: "6-5", result: "win", date: "Dec 7", round: "Playoff" },
+                        { opponent: "@ Lemon Grove Athletics", score: "15-6", result: "win", date: "Dec 14", round: "Playoff" }
                     ]
                 },
                 {
@@ -440,14 +442,6 @@ const seasonsData = {
                 }
             ],
             upcomingGames: [
-                {
-                    date: "Dec 14",
-                    day: "Sun",
-                    time: "8:30 am",
-                    visitors: "SD Rip City",
-                    home: "Lemon Grove Athletics",
-                    venue: "Monte Vista"
-                }
             ]
         },
 
